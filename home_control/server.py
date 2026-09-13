@@ -27,9 +27,18 @@ async def rest_get(session, path):
 
 async def websocket_registries(session):
     results = {}
+    print("HOME CONTROL: opening registry websocket", flush=True)
 
     async with session.ws_connect(WS) as ws:
-        hello = await ws.receive_json()
+        hello = await asyncio.wait_for(
+            ws.receive_json(),
+            timeout=10
+        )
+        print(
+            "HOME CONTROL: websocket greeting:",
+            hello.get("type"),
+            flush=True
+        )
 
         if hello.get("type") != "auth_required":
             raise RuntimeError(
@@ -41,7 +50,15 @@ async def websocket_registries(session):
             "access_token": TOKEN,
         })
 
-        auth = await ws.receive_json()
+        auth = await asyncio.wait_for(
+            ws.receive_json(),
+            timeout=10
+        )
+        print(
+            "HOME CONTROL: websocket auth:",
+            auth.get("type"),
+            flush=True
+        )
 
         if auth.get("type") != "auth_ok":
             raise RuntimeError(
@@ -55,13 +72,22 @@ async def websocket_registries(session):
         ]
 
         for command_id, (key, command) in enumerate(commands, start=1):
+            print(
+                "HOME CONTROL: requesting",
+                command,
+                flush=True
+            )
+
             await ws.send_json({
                 "id": command_id,
                 "type": command,
             })
 
             while True:
-                message = await ws.receive_json()
+                message = await asyncio.wait_for(
+                    ws.receive_json(),
+                    timeout=10
+                )
 
                 if message.get("id") != command_id:
                     continue
@@ -72,6 +98,14 @@ async def websocket_registries(session):
                     )
 
                 results[key] = message.get("result", [])
+                print(
+                    "HOME CONTROL:",
+                    command,
+                    "returned",
+                    len(results[key]),
+                    "records",
+                    flush=True
+                )
                 break
 
     return results
@@ -87,6 +121,8 @@ async def get_registries(session):
     return registry_cache
 
 async def bootstrap(request):
+    print("HOME CONTROL: bootstrap requested", flush=True)
+
     try:
         timeout = ClientTimeout(total=25)
 
