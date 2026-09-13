@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.6.4</div>
+<div class="key">Home Control • 0.7.0</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -651,6 +651,96 @@ fetch(base + '/api/bootstrap')
 
 
 
+
+  function getCameraSignals() {
+    const cameras =
+      getVisibleCameraEntities(enabledEntities);
+
+    const ringCameras = cameras.filter(entity =>
+      entity.platform === 'ring'
+    );
+
+    const ringDeviceIds = new Set(
+      ringCameras
+        .map(entity => entity.device_id)
+        .filter(Boolean)
+    );
+
+    const ringAreaIds = new Set(
+      ringCameras
+        .map(entity => effectiveArea(entity))
+        .filter(Boolean)
+    );
+
+    const allowedDomains = new Set([
+      'binary_sensor',
+      'sensor',
+      'event',
+      'button'
+    ]);
+
+    return enabledEntities
+      .filter(entity => {
+        const domain =
+          entity.entity_id.split('.')[0];
+
+        if (!allowedDomains.has(domain)) {
+          return false;
+        }
+
+        if (entity.platform === 'ring') {
+          return true;
+        }
+
+        if (
+          entity.device_id &&
+          ringDeviceIds.has(entity.device_id)
+        ) {
+          return true;
+        }
+
+        const areaId = effectiveArea(entity);
+
+        return (
+          entity.platform === 'ring' &&
+          areaId &&
+          ringAreaIds.has(areaId)
+        );
+      })
+      .map(entity => {
+        const state =
+          stateMap.get(entity.entity_id);
+
+        const areaId =
+          effectiveArea(entity);
+
+        const areaName =
+          areas.find(area =>
+            area.area_id === areaId
+          )?.name || 'Unassigned';
+
+        return {
+          entity,
+          state,
+          areaName,
+          name:
+            entity.name ||
+            entity.original_name ||
+            state?.attributes?.friendly_name ||
+            entity.entity_id
+        };
+      })
+      .sort((a, b) => {
+        const area =
+          a.areaName.localeCompare(b.areaName);
+
+        if (area !== 0) return area;
+
+        return a.name.localeCompare(b.name);
+      });
+  }
+
+
   window.openCameras = function() {
     const cameras = getVisibleCameraEntities()
       .map(entity => {
@@ -774,6 +864,69 @@ fetch(base + '/api/bootstrap')
           </div>
         `)
         .join('');
+
+    const cameraSignals =
+      getCameraSignals();
+
+    if (cameraSignals.length) {
+      const signalRows =
+        cameraSignals.map(item => {
+          const domain =
+            item.entity.entity_id.split('.')[0];
+
+          const changed =
+            item.state?.last_changed
+              ? new Date(
+                  item.state.last_changed
+                ).toLocaleString()
+              : '—';
+
+          return `
+            <div class="row">
+              <span>
+                <strong>${item.name}</strong><br>
+                <span class="muted"
+                      style="font-size:11px">
+                  ${item.areaName} •
+                  ${domain} •
+                  ${item.entity.entity_id}
+                </span>
+              </span>
+
+              <span style="text-align:right">
+                <b>
+                  ${item.state?.state ?? '—'}
+                </b><br>
+                <span class="muted"
+                      style="font-size:10px">
+                  ${changed}
+                </span>
+              </span>
+            </div>
+          `;
+        }).join('');
+
+      document.getElementById(
+        'cameraDetailList'
+      ).innerHTML += `
+        <div style="margin-top:28px">
+          <div class="key"
+               style="margin:0 0 8px 2px">
+            Camera Signals
+          </div>
+
+          <div class="banner"
+               style="margin:0 0 12px 0">
+            ${cameraSignals.length} Ring-related signals •
+            read-only discovery
+          </div>
+
+          <div class="area-list">
+            ${signalRows}
+          </div>
+        </div>
+      `;
+    }
 
     document.getElementById(
       'cameraDetail'
