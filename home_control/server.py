@@ -1,5 +1,7 @@
 import json
 import os
+import socket
+import urllib.error
 import urllib.request
 
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
@@ -9,18 +11,62 @@ TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 HA = "http://supervisor/core/api"
 WWW = "/www"
 
+print("HOME CONTROL: starting v0.1.2", flush=True)
+print(
+    "HOME CONTROL: SUPERVISOR_TOKEN present:",
+    bool(TOKEN),
+    flush=True,
+)
+
+try:
+    print(
+        "HOME CONTROL: supervisor resolves to:",
+        socket.gethostbyname("supervisor"),
+        flush=True,
+    )
+except Exception as error:
+    print(
+        "HOME CONTROL: supervisor DNS ERROR:",
+        repr(error),
+        flush=True,
+    )
+
 
 def ha_get(path):
+    url = HA + path
+
     request = urllib.request.Request(
-        HA + path,
+        url,
         headers={
             "Authorization": "Bearer " + TOKEN,
             "Content-Type": "application/json",
         },
     )
 
-    with urllib.request.urlopen(request, timeout=15) as response:
-        return json.loads(response.read().decode())
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return json.loads(response.read().decode())
+
+    except urllib.error.HTTPError as error:
+        print(
+            "HOME CONTROL: HA HTTP ERROR:",
+            error.code,
+            error.reason,
+            "URL:",
+            url,
+            flush=True,
+        )
+        raise
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: HA CONNECTION ERROR:",
+            repr(error),
+            "URL:",
+            url,
+            flush=True,
+        )
+        raise
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -45,7 +91,6 @@ class Handler(SimpleHTTPRequestHandler):
         if path.endswith("/api/health"):
             try:
                 config = ha_get("/config")
-
                 self.send_json(
                     200,
                     {
@@ -54,13 +99,11 @@ class Handler(SimpleHTTPRequestHandler):
                         "version": config.get("version"),
                     },
                 )
-
             except Exception as error:
                 self.send_json(
                     502,
-                    {"ok": False, "error": str(error)},
+                    {"ok": False, "error": repr(error)},
                 )
-
             return
 
         if path.endswith("/api/bootstrap"):
@@ -72,13 +115,16 @@ class Handler(SimpleHTTPRequestHandler):
                         "states": ha_get("/states"),
                     },
                 )
-
             except Exception as error:
+                print(
+                    "HOME CONTROL: BOOTSTRAP ERROR:",
+                    repr(error),
+                    flush=True,
+                )
                 self.send_json(
                     502,
-                    {"error": str(error)},
+                    {"error": repr(error)},
                 )
-
             return
 
         super().do_GET()
