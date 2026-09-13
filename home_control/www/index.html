@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover">
+
+<title>Home Control</title>
+
+<style>
+
+:root {
+  --bg: #090d12;
+  --card: #151b22;
+  --line: #29343f;
+  --text: #f5f7fa;
+  --muted: #97a4b1;
+  --good: #35d07f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(#090d12,#101720);
+  color: var(--text);
+  font-family: system-ui,-apple-system,sans-serif;
+}
+
+main {
+  max-width: 600px;
+  margin: auto;
+  padding: 24px 16px 50px;
+}
+
+h1 {
+  font-size: 34px;
+  margin: 3px 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.status,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2,1fr);
+  gap: 10px;
+}
+
+.status {
+  grid-template-columns: repeat(3,1fr);
+  margin: 20px 0;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  padding: 15px;
+}
+
+.key {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.value {
+  font-weight: 800;
+  margin-top: 5px;
+}
+
+.good {
+  color: var(--good);
+}
+
+h2 {
+  font-size: 19px;
+  margin: 25px 2px 11px;
+}
+
+.room {
+  min-height: 125px;
+}
+
+.wide {
+  grid-column: span 2;
+}
+
+.room strong {
+  display: block;
+  margin-top: 30px;
+}
+
+.count {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.banner {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  margin-top: 18px;
+}
+
+</style>
+</head>
+
+<body>
+
+<main>
+
+<div class="key">Home Control • Connected V1</div>
+
+<h1 id="title">Connecting…</h1>
+
+<div class="muted" id="subtitle">
+Read-only Home Assistant connection
+</div>
+
+<div class="banner" id="banner">
+Checking Home Assistant…
+</div>
+
+<div class="status">
+
+<div class="card">
+<div class="key">HA</div>
+<div class="value" id="ha">—</div>
+</div>
+
+<div class="card">
+<div class="key">Entities</div>
+<div class="value" id="entities">—</div>
+</div>
+
+<div class="card">
+<div class="key">Active</div>
+<div class="value" id="active">—</div>
+</div>
+
+</div>
+
+<h2>Favorites</h2>
+
+<div class="grid">
+
+<div class="card room wide">
+☾
+<strong>Main Bedroom + Bathroom</strong>
+<div class="count">Mapping next</div>
+</div>
+
+<div class="card room">
+⌂
+<strong>Main Floor</strong>
+<div class="count">Kitchen + Living Room</div>
+</div>
+
+<div class="card room">
+▱
+<strong>Loft</strong>
+<div class="count">Mapping next</div>
+</div>
+
+<div class="card room">
+☀
+<strong>Lighting</strong>
+<div class="count" id="lights">—</div>
+</div>
+
+<div class="card room">
+▤
+<strong>Garage</strong>
+<div class="count">Mapping next</div>
+</div>
+
+<div class="card room wide">
+◉
+<strong>Cameras</strong>
+<div class="count" id="cameras">—</div>
+</div>
+
+</div>
+
+<h2>Live sample</h2>
+
+<div class="card" id="sample">
+Waiting for states…
+</div>
+
+</main>
+
+<script>
+
+const base =
+  location.pathname.replace(/\/$/,'');
+
+fetch(base + '/api/bootstrap')
+
+.then(response => {
+  if (!response.ok)
+    throw Error('API ' + response.status);
+
+  return response.json();
+})
+
+.then(data => {
+
+  const states = data.states || [];
+  const config = data.config || {};
+
+  document.getElementById('title').textContent =
+    config.location_name || 'Home';
+
+  document.getElementById('subtitle').textContent =
+    'Home Assistant ' +
+    (config.version || '') +
+    ' • read-only';
+
+  document.getElementById('ha').innerHTML =
+    '<span class="good">Linked</span>';
+
+  document.getElementById('entities').textContent =
+    states.length;
+
+  document.getElementById('active').textContent =
+    states.filter(x =>
+      ['on','open','playing','home']
+      .includes(x.state)
+    ).length;
+
+  document.getElementById('lights').textContent =
+    states.filter(x =>
+      x.entity_id.startsWith('light.')
+    ).length +
+    ' HA light entities';
+
+  document.getElementById('cameras').textContent =
+    states.filter(x =>
+      x.entity_id.startsWith('camera.')
+    ).length +
+    ' HA camera entities';
+
+  document.getElementById('banner').innerHTML =
+    '<span class="good">● Connected</span> ' +
+    '— real HA state data is reaching Home Control. ' +
+    'Controls are disabled.';
+
+  const sample =
+    states
+    .filter(x =>
+      !['unknown','unavailable']
+      .includes(x.state)
+    )
+    .slice(0,8);
+
+  document.getElementById('sample').innerHTML =
+    sample.map(x =>
+      '<div class="row">' +
+      '<span>' +
+      ((x.attributes || {}).friendly_name ||
+       x.entity_id) +
+      '</span>' +
+      '<b>' +
+      x.state +
+      '</b>' +
+      '</div>'
+    ).join('');
+
+})
+
+.catch(error => {
+
+  document.getElementById('title').textContent =
+    'Connection issue';
+
+  document.getElementById('banner').textContent =
+    'UI loaded, but HA API failed: ' +
+    error.message;
+
+});
+
+</script>
+
+</body>
+</html>

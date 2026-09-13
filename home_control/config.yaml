@@ -1,0 +1,20 @@
+name: "Home Control"
+version: "0.1.0"
+slug: "home_control"
+description: "Phone-first custom Home Assistant control interface"
+url: "https://github.com/dwaynejcrawford/home-assistant-home-control"
+arch:
+  - amd64
+startup: application
+boot: auto
+init: false
+ingress: true
+ingress_port: 8099
+ingress_stream: true
+panel_icon: mdi:home-assistant
+panel_title: Home Control
+panel_admin: false
+homeassistant_api: true
+hassio_api: false
+host_network: false
+stage: experimental
