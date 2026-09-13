@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.4.2</div>
+<div class="key">Home Control • 0.5.0</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -1127,8 +1127,106 @@ fetch(base + '/api/bootstrap')
       `;
     }).join('');
 
-    const otherRows = nonLights
-      .slice(0, 20)
+    const mediaEntities = nonLights.filter(entity =>
+      entity.entity_id.startsWith('media_player.')
+    );
+
+    const climateEntities = nonLights.filter(entity =>
+      entity.entity_id.startsWith('climate.')
+    );
+
+    const remainingEntities = nonLights.filter(entity =>
+      !entity.entity_id.startsWith('media_player.') &&
+      !entity.entity_id.startsWith('climate.')
+    );
+
+
+    const mediaRows = mediaEntities.map(entity => {
+      const state =
+        stateMap.get(entity.entity_id);
+
+      const name =
+        entity.name ||
+        entity.original_name ||
+        state?.attributes?.friendly_name ||
+        entity.entity_id;
+
+      const source =
+        state?.attributes?.source;
+
+      const title =
+        state?.attributes?.media_title;
+
+      const volume =
+        state?.attributes?.volume_level;
+
+      const volumePct =
+        typeof volume === 'number'
+          ? Math.round(volume * 100)
+          : null;
+
+      const details = [
+        state?.state,
+        source,
+        title,
+        volumePct !== null
+          ? `Vol ${volumePct}%`
+          : null
+      ].filter(Boolean);
+
+      return `
+        <div class="row">
+          <span>
+            <strong>${name}</strong>
+          </span>
+          <b>${details.join(' • ') || '—'}</b>
+        </div>
+      `;
+    }).join('');
+
+
+    const climateRows = climateEntities.map(entity => {
+      const state =
+        stateMap.get(entity.entity_id);
+
+      const name =
+        entity.name ||
+        entity.original_name ||
+        state?.attributes?.friendly_name ||
+        entity.entity_id;
+
+      const current =
+        state?.attributes?.current_temperature;
+
+      const target =
+        state?.attributes?.temperature;
+
+      const mode =
+        state?.state;
+
+      const details = [
+        mode,
+        current !== undefined
+          ? `Current ${current}°`
+          : null,
+        target !== undefined
+          ? `Set ${target}°`
+          : null
+      ].filter(Boolean);
+
+      return `
+        <div class="row">
+          <span>
+            <strong>${name}</strong>
+          </span>
+          <b>${details.join(' • ') || '—'}</b>
+        </div>
+      `;
+    }).join('');
+
+
+    const otherRows = remainingEntities
+      .slice(0, 15)
       .map(entity => {
         const state =
           stateMap.get(entity.entity_id);
@@ -1185,6 +1283,24 @@ fetch(base + '/api/bootstrap')
         </div>
         <div class="area-list" style="margin-bottom:20px">
           ${lightRows}
+        </div>
+      ` : ''}
+
+      ${mediaRows ? `
+        <div class="key" style="margin:0 0 8px 2px">
+          Media
+        </div>
+        <div class="area-list" style="margin-bottom:20px">
+          ${mediaRows}
+        </div>
+      ` : ''}
+
+      ${climateRows ? `
+        <div class="key" style="margin:0 0 8px 2px">
+          Climate
+        </div>
+        <div class="area-list" style="margin-bottom:20px">
+          ${climateRows}
         </div>
       ` : ''}
 
