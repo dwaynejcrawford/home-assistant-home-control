@@ -172,6 +172,75 @@ async def states(request):
         )
 
 
+
+async def call_service(request):
+    try:
+        data = await request.json()
+
+        domain = data.get("domain")
+        service = data.get("service")
+        entity_id = data.get("entity_id")
+
+        if domain != "light":
+            return web.json_response(
+                {"error": "Only light controls are enabled"},
+                status=403,
+            )
+
+        if service not in {"turn_on", "turn_off"}:
+            return web.json_response(
+                {"error": "Unsupported light service"},
+                status=403,
+            )
+
+        if not entity_id or not entity_id.startswith("light."):
+            return web.json_response(
+                {"error": "Invalid light entity"},
+                status=400,
+            )
+
+        async with ClientSession(
+            timeout=ClientTimeout(total=15)
+        ) as session:
+            async with session.post(
+                f"{REST}/services/{domain}/{service}",
+                headers={
+                    "Authorization": f"Bearer {TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "entity_id": entity_id,
+                },
+            ) as response:
+                response.raise_for_status()
+                result = await response.json()
+
+        print(
+            "HOME CONTROL: service call",
+            domain,
+            service,
+            entity_id,
+            flush=True,
+        )
+
+        return web.json_response({
+            "ok": True,
+            "result": result,
+        })
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: SERVICE ERROR:",
+            repr(error),
+            flush=True,
+        )
+
+        return web.json_response(
+            {"error": repr(error)},
+            status=502,
+        )
+
+
 async def index(request):
     return web.FileResponse(WWW / "index.html")
 
@@ -190,6 +259,7 @@ app.router.add_get("/", index)
 app.router.add_get("/api/bootstrap", bootstrap)
 app.router.add_get("/api/states", states)
 app.router.add_get("/api/health", health)
+app.router.add_post("/api/service", call_service)
 
 web.run_app(
     app,
