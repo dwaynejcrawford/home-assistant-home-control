@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.6.2</div>
+<div class="key">Home Control • 0.6.3</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -355,6 +355,35 @@ function plural(n, word) {
   return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
+
+function getVisibleCameraEntities() {
+  const allCameraEntities = enabledEntities
+    .filter(entity =>
+      entity.entity_id.startsWith('camera.')
+    );
+
+  const hasNativeRing =
+    allCameraEntities.some(entity =>
+      entity.platform === 'ring'
+    );
+
+  const hasNativeEufy =
+    allCameraEntities.some(entity =>
+      entity.platform === 'eufy_security'
+    );
+
+  return allCameraEntities.filter(entity => {
+    if (entity.platform === 'mqtt') {
+      if (hasNativeRing || hasNativeEufy) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+
 function matches(name, words) {
   name = (name || '').toLowerCase();
 
@@ -517,9 +546,7 @@ fetch(base + '/api/bootstrap')
     `${plural(lights.length, 'light')} • ${onLights.length} on`;
 
   const cameras =
-    enabledEntities.filter(entity =>
-      entity.entity_id.startsWith('camera.')
-    );
+    getVisibleCameraEntities();
 
   const cameraPlatforms = [
     ...new Set(
@@ -625,31 +652,7 @@ fetch(base + '/api/bootstrap')
 
 
   window.openCameras = function() {
-    const allCameraEntities = enabledEntities
-      .filter(entity =>
-        entity.entity_id.startsWith('camera.')
-      );
-
-    const hasNativeRing =
-      allCameraEntities.some(entity =>
-        entity.platform === 'ring'
-      );
-
-    const hasNativeEufy =
-      allCameraEntities.some(entity =>
-        entity.platform === 'eufy_security'
-      );
-
-    const cameras = allCameraEntities
-      .filter(entity => {
-        if (entity.platform === 'mqtt') {
-          if (hasNativeRing || hasNativeEufy) {
-            return false;
-          }
-        }
-
-        return true;
-      })
+    const cameras = getVisibleCameraEntities()
       .map(entity => {
         const state =
           stateMap.get(entity.entity_id);
