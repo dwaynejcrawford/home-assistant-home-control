@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.6.0</div>
+<div class="key">Home Control • 0.6.1</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -625,10 +625,56 @@ fetch(base + '/api/bootstrap')
 
 
   window.openCameras = function() {
-    const cameras = enabledEntities
+    const allCameraEntities = enabledEntities
       .filter(entity =>
         entity.entity_id.startsWith('camera.')
-      )
+      );
+
+    const ringNames = new Set(
+      allCameraEntities
+        .filter(entity => entity.platform === 'ring')
+        .map(entity => {
+          const state = stateMap.get(entity.entity_id);
+
+          return (
+            entity.name ||
+            entity.original_name ||
+            state?.attributes?.friendly_name ||
+            entity.entity_id
+          )
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ' ')
+          .trim();
+        })
+    );
+
+    const cameras = allCameraEntities
+      .filter(entity => {
+        if (entity.platform !== 'mqtt') {
+          return true;
+        }
+
+        const state = stateMap.get(entity.entity_id);
+
+        const normalizedName = (
+          entity.name ||
+          entity.original_name ||
+          state?.attributes?.friendly_name ||
+          entity.entity_id
+        )
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+
+        const duplicatesRing =
+          ringNames.has(normalizedName) ||
+          [...ringNames].some(ringName =>
+            normalizedName.includes(ringName) ||
+            ringName.includes(normalizedName)
+          );
+
+        return !duplicatesRing;
+      })
       .map(entity => {
         const state =
           stateMap.get(entity.entity_id);
