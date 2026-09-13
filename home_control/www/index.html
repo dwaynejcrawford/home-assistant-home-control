@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.3.0</div>
+<div class="key">Home Control • 0.3.1</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -596,7 +596,11 @@ fetch(base + '/api/bootstrap')
 
 
   window.openLighting = function() {
-    const lights = enabledEntities
+    const hiddenNamePatterns = [
+      /^segment\s+\d+/i
+    ];
+
+    const allLights = enabledEntities
       .filter(entity =>
         entity.entity_id.startsWith('light.')
       )
@@ -635,22 +639,38 @@ fetch(base + '/api/bootstrap')
         };
       });
 
-    lights.sort((a, b) => {
-      const areaCompare =
-        a.areaName.localeCompare(b.areaName);
+    const visibleLights = allLights.filter(item =>
+      !hiddenNamePatterns.some(pattern =>
+        pattern.test(item.name)
+      )
+    );
 
-      if (areaCompare !== 0) {
-        return areaCompare;
+    const availableLights = visibleLights.filter(item =>
+      item.state?.state !== 'unavailable'
+    );
+
+    const unavailableLights = visibleLights.filter(item =>
+      item.state?.state === 'unavailable'
+    );
+
+    const grouped = new Map();
+
+    availableLights.forEach(item => {
+      if (!grouped.has(item.areaName)) {
+        grouped.set(item.areaName, []);
       }
 
-      return a.name.localeCompare(b.name);
+      grouped.get(item.areaName).push(item);
     });
 
-    document.getElementById(
-      'lightingDetailList'
-    ).innerHTML =
-      lights.length
-      ? lights.map(item => {
+    const areaSections = [...grouped.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([areaName, items]) => {
+        items.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+
+        const rows = items.map(item => {
           const stateText =
             item.state?.state === 'on'
               ? 'On'
@@ -666,16 +686,66 @@ fetch(base + '/api/bootstrap')
           return `
             <div class="row">
               <span>
-                <strong>${item.name}</strong><br>
-                <span class="muted">${item.areaName}</span>
+                <strong>${item.name}</strong>
               </span>
-              <b>
-                ${stateText}${brightnessText}
-              </b>
+              <b>${stateText}${brightnessText}</b>
             </div>
           `;
-        }).join('')
-      : '<div class="row"><span>No light entities found</span></div>';
+        }).join('');
+
+        return `
+          <div style="margin-bottom:18px">
+            <div class="key" style="margin:0 0 8px 2px">
+              ${areaName}
+            </div>
+            <div class="area-list">
+              ${rows}
+            </div>
+          </div>
+        `;
+      })
+      .join('');
+
+    const unavailableSection =
+      unavailableLights.length
+      ? `
+        <div style="margin-top:24px">
+          <div class="key" style="margin:0 0 8px 2px">
+            Unavailable
+          </div>
+          <div class="area-list">
+            ${unavailableLights
+              .sort((a, b) =>
+                a.name.localeCompare(b.name)
+              )
+              .map(item => `
+                <div class="row">
+                  <span>
+                    <strong>${item.name}</strong><br>
+                    <span class="muted">${item.areaName}</span>
+                  </span>
+                  <b>Unavailable</b>
+                </div>
+              `)
+              .join('')}
+          </div>
+        </div>
+      `
+      : '';
+
+    const onCount = availableLights.filter(item =>
+      item.state?.state === 'on'
+    ).length;
+
+    document.getElementById(
+      'lightingDetailList'
+    ).innerHTML = `
+      <div class="banner" style="margin:0 0 18px 0">
+        ${availableLights.length} visible lights • ${onCount} on
+      </div>
+      ${areaSections || '<div class="row"><span>No lights found</span></div>'}
+      ${unavailableSection}
+    `;
 
     document.getElementById(
       'lightingDetail'
