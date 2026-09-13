@@ -7,7 +7,9 @@ LABEL io.hass.version="${BUILD_VERSION}" \
       io.hass.type="app" \
       io.hass.arch="${BUILD_ARCH}"
 
-RUN apk add --no-cache python3
+RUN apk add --no-cache \
+    python3 \
+    py3-aiohttp
 
 COPY server.py /server.py
 COPY www /www

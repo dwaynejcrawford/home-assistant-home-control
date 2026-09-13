@@ -1,136 +1,163 @@
-import json
 import os
-import socket
-import urllib.error
-import urllib.request
+import asyncio
+from pathlib import Path
 
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
-from urllib.parse import urlparse
+from aiohttp import ClientSession, ClientTimeout, web
 
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
-HA = "http://supervisor/core/api"
-WWW = "/www"
+REST = "http://supervisor/core/api"
+WS = "ws://supervisor/core/websocket"
+WWW = Path("/www")
 
-print("HOME CONTROL: starting v0.1.2", flush=True)
-print(
-    "HOME CONTROL: SUPERVISOR_TOKEN present:",
-    bool(TOKEN),
-    flush=True,
-)
-
-try:
-    print(
-        "HOME CONTROL: supervisor resolves to:",
-        socket.gethostbyname("supervisor"),
-        flush=True,
-    )
-except Exception as error:
-    print(
-        "HOME CONTROL: supervisor DNS ERROR:",
-        repr(error),
-        flush=True,
-    )
+registry_cache = None
+registry_lock = asyncio.Lock()
 
 
-def ha_get(path):
-    url = HA + path
-
-    request = urllib.request.Request(
-        url,
+async def rest_get(session, path):
+    async with session.get(
+        REST + path,
         headers={
-            "Authorization": "Bearer " + TOKEN,
+            "Authorization": f"Bearer {TOKEN}",
             "Content-Type": "application/json",
         },
-    )
+    ) as response:
+        response.raise_for_status()
+        return await response.json()
 
+
+async def websocket_registries(session):
+    results = {}
+
+    async with session.ws_connect(WS) as ws:
+        hello = await ws.receive_json()
+
+        if hello.get("type") != "auth_required":
+            raise RuntimeError(
+                f"Unexpected WebSocket greeting: {hello}"
+            )
+
+        await ws.send_json({
+            "type": "auth",
+            "access_token": TOKEN,
+        })
+
+        auth = await ws.receive_json()
+
+        if auth.get("type") != "auth_ok":
+            raise RuntimeError(
+                f"WebSocket authentication failed: {auth}"
+            )
+
+        commands = [
+            ("areas", "config/area_registry/list"),
+            ("devices", "config/device_registry/list"),
+            ("entities", "config/entity_registry/list"),
+        ]
+
+        for command_id, (key, command) in enumerate(commands, start=1):
+            await ws.send_json({
+                "id": command_id,
+                "type": command,
+            })
+
+            while True:
+                message = await ws.receive_json()
+
+                if message.get("id") != command_id:
+                    continue
+
+                if not message.get("success"):
+                    raise RuntimeError(
+                        f"{command} failed: {message}"
+                    )
+
+                results[key] = message.get("result", [])
+                break
+
+    return results
+
+
+async def get_registries(session):
+    global registry_cache
+
+    async with registry_lock:
+        if registry_cache is None:
+            registry_cache = await websocket_registries(session)
+
+    return registry_cache
+
+async def bootstrap(request):
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            return json.loads(response.read().decode())
+        timeout = ClientTimeout(total=25)
 
-    except urllib.error.HTTPError as error:
-        print(
-            "HOME CONTROL: HA HTTP ERROR:",
-            error.code,
-            error.reason,
-            "URL:",
-            url,
-            flush=True,
-        )
-        raise
+        async with ClientSession(timeout=timeout) as session:
+            config, states = await asyncio.gather(
+                rest_get(session, "/config"),
+                rest_get(session, "/states"),
+            )
+
+            registries = await get_registries(session)
+
+        return web.json_response({
+            "config": config,
+            "states": states,
+            "areas": registries["areas"],
+            "devices": registries["devices"],
+            "entities": registries["entities"],
+        })
 
     except Exception as error:
         print(
-            "HOME CONTROL: HA CONNECTION ERROR:",
+            "HOME CONTROL: BOOTSTRAP ERROR:",
             repr(error),
-            "URL:",
-            url,
             flush=True,
         )
-        raise
+
+        return web.json_response(
+            {"error": repr(error)},
+            status=502,
+        )
 
 
-class Handler(SimpleHTTPRequestHandler):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=WWW, **kwargs)
+async def states(request):
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=15)
+        ) as session:
+            data = await rest_get(session, "/states")
 
-    def send_json(self, status, obj):
-        body = json.dumps(obj).encode()
+        return web.json_response(data)
 
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-
-        self.wfile.write(body)
-
-    def do_GET(self):
-        path = urlparse(self.path).path
-
-        if path.endswith("/api/health"):
-            try:
-                config = ha_get("/config")
-                self.send_json(
-                    200,
-                    {
-                        "ok": True,
-                        "location_name": config.get("location_name"),
-                        "version": config.get("version"),
-                    },
-                )
-            except Exception as error:
-                self.send_json(
-                    502,
-                    {"ok": False, "error": repr(error)},
-                )
-            return
-
-        if path.endswith("/api/bootstrap"):
-            try:
-                self.send_json(
-                    200,
-                    {
-                        "config": ha_get("/config"),
-                        "states": ha_get("/states"),
-                    },
-                )
-            except Exception as error:
-                print(
-                    "HOME CONTROL: BOOTSTRAP ERROR:",
-                    repr(error),
-                    flush=True,
-                )
-                self.send_json(
-                    502,
-                    {"error": repr(error)},
-                )
-            return
-
-        super().do_GET()
+    except Exception as error:
+        return web.json_response(
+            {"error": repr(error)},
+            status=502,
+        )
 
 
-ThreadingHTTPServer(
-    ("0.0.0.0", 8099),
-    Handler,
-).serve_forever()
+async def index(request):
+    return web.FileResponse(WWW / "index.html")
+
+
+async def health(request):
+    return web.json_response({
+        "ok": True,
+        "token_present": bool(TOKEN),
+        "version": "0.2.0",
+    })
+
+
+app = web.Application()
+
+app.router.add_get("/", index)
+app.router.add_get("/api/bootstrap", bootstrap)
+app.router.add_get("/api/states", states)
+app.router.add_get("/api/health", health)
+
+web.run_app(
+    app,
+    host="0.0.0.0",
+    port=8099,
+    print=None,
+)

@@ -1,148 +1,187 @@
 <!doctype html>
 <html lang="en">
-
 <head>
 <meta charset="utf-8">
 <meta name="viewport"
       content="width=device-width,initial-scale=1,viewport-fit=cover">
-
 <title>Home Control</title>
 
 <style>
-
 :root {
-  --bg: #090d12;
-  --card: #151b22;
-  --line: #29343f;
-  --text: #f5f7fa;
-  --muted: #97a4b1;
-  --good: #35d07f;
+  --bg:#090d12;
+  --bg2:#101720;
+  --card:#151b22;
+  --card2:#1b232c;
+  --line:#29343f;
+  --text:#f5f7fa;
+  --muted:#97a4b1;
+  --good:#35d07f;
+  --warn:#ffb020;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing:border-box; }
 
 body {
-  margin: 0;
-  background: linear-gradient(#090d12,#101720);
-  color: var(--text);
-  font-family: system-ui,-apple-system,sans-serif;
+  margin:0;
+  background:linear-gradient(180deg,var(--bg),var(--bg2));
+  color:var(--text);
+  font-family:system-ui,-apple-system,sans-serif;
 }
 
 main {
-  max-width: 600px;
-  margin: auto;
-  padding: 24px 16px 50px;
+  max-width:600px;
+  margin:auto;
+  padding:
+    calc(22px + env(safe-area-inset-top))
+    16px
+    calc(40px + env(safe-area-inset-bottom));
 }
 
 h1 {
-  font-size: 34px;
-  margin: 3px 0;
-}
-
-.muted {
-  color: var(--muted);
-}
-
-.status,
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2,1fr);
-  gap: 10px;
-}
-
-.status {
-  grid-template-columns: repeat(3,1fr);
-  margin: 20px 0;
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 19px;
-  padding: 15px;
-}
-
-.key {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.value {
-  font-weight: 800;
-  margin-top: 5px;
-}
-
-.good {
-  color: var(--good);
+  font-size:34px;
+  letter-spacing:-.045em;
+  margin:2px 0 4px;
 }
 
 h2 {
-  font-size: 19px;
-  margin: 25px 2px 11px;
+  font-size:19px;
+  margin:27px 2px 11px;
 }
 
-.room {
-  min-height: 125px;
-}
+.muted { color:var(--muted); }
+.good { color:var(--good); }
+.warn { color:var(--warn); }
 
-.wide {
-  grid-column: span 2;
-}
-
-.room strong {
-  display: block;
-  margin-top: 30px;
-}
-
-.count {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 4px;
-}
-
-.row {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 12px;
+.key {
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.1em;
+  text-transform:uppercase;
 }
 
 .banner {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  font-size: 13px;
-  margin-top: 18px;
+  margin-top:18px;
+  padding:13px 15px;
+  border:1px solid var(--line);
+  background:var(--card);
+  border-radius:16px;
+  font-size:13px;
 }
 
+.summary {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:9px;
+  margin:13px 0 23px;
+}
+
+.card {
+  border:1px solid var(--line);
+  background:var(--card);
+  border-radius:20px;
+  padding:15px;
+}
+
+.value {
+  margin-top:5px;
+  font-size:16px;
+  font-weight:800;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.favorite {
+  min-height:142px;
+  display:flex;
+  flex-direction:column;
+}
+
+.favorite.wide {
+  grid-column:span 2;
+  min-height:125px;
+}
+
+.icon {
+  width:37px;
+  height:37px;
+  display:grid;
+  place-items:center;
+  background:var(--card2);
+  border-radius:12px;
+  font-size:18px;
+}
+
+.favorite strong {
+  display:block;
+  font-size:17px;
+  margin-top:auto;
+}
+
+.detail {
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+  line-height:1.35;
+}
+
+.area-list {
+  border:1px solid var(--line);
+  background:var(--card);
+  border-radius:20px;
+  padding:3px 15px;
+}
+
+.row {
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  padding:13px 0;
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+}
+
+.row:last-child {
+  border-bottom:0;
+}
+
+.row b {
+  font-size:12px;
+  text-align:right;
+}
+
+.pill {
+  display:inline-block;
+  padding:3px 7px;
+  margin:2px 2px 0 0;
+  border:1px solid var(--line);
+  background:var(--card2);
+  border-radius:999px;
+  color:var(--muted);
+  font-size:10px;
+}
 </style>
 </head>
 
 <body>
-
 <main>
 
-<div class="key">Home Control • Connected V1</div>
-
+<div class="key">Home Control • 0.2.0</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
-Read-only Home Assistant connection
+Discovering Home Assistant Areas and devices
 </div>
 
 <div class="banner" id="banner">
-Checking Home Assistant…
+Reading your Home Assistant registries…
 </div>
 
-<div class="status">
+<div class="summary">
 
 <div class="card">
 <div class="key">HA</div>
@@ -150,158 +189,364 @@ Checking Home Assistant…
 </div>
 
 <div class="card">
-<div class="key">Entities</div>
-<div class="value" id="entities">—</div>
+<div class="key">Areas</div>
+<div class="value" id="areaCount">—</div>
 </div>
 
 <div class="card">
-<div class="key">Active</div>
-<div class="value" id="active">—</div>
+<div class="key">Entities</div>
+<div class="value" id="entityCount">—</div>
 </div>
 
 </div>
 
-<h2>Favorites</h2>
+<h2>Your favorites</h2>
 
 <div class="grid">
 
-<div class="card room wide">
-☾
+<div class="card favorite wide">
+<div class="icon">☾</div>
 <strong>Main Bedroom + Bathroom</strong>
-<div class="count">Mapping next</div>
+<div class="detail" id="bedroom">Detecting…</div>
 </div>
 
-<div class="card room">
-⌂
+<div class="card favorite">
+<div class="icon">⌂</div>
 <strong>Main Floor</strong>
-<div class="count">Kitchen + Living Room</div>
+<div class="detail" id="mainfloor">Detecting…</div>
 </div>
 
-<div class="card room">
-▱
+<div class="card favorite">
+<div class="icon">▱</div>
 <strong>Loft</strong>
-<div class="count">Mapping next</div>
+<div class="detail" id="loft">Detecting…</div>
 </div>
 
-<div class="card room">
-☀
+<div class="card favorite">
+<div class="icon">☀</div>
 <strong>Lighting</strong>
-<div class="count" id="lights">—</div>
+<div class="detail" id="lighting">Detecting…</div>
 </div>
 
-<div class="card room">
-▤
+<div class="card favorite">
+<div class="icon">▤</div>
 <strong>Garage</strong>
-<div class="count">Mapping next</div>
+<div class="detail" id="garage">Detecting…</div>
 </div>
 
-<div class="card room wide">
-◉
+<div class="card favorite wide">
+<div class="icon">◉</div>
 <strong>Cameras</strong>
-<div class="count" id="cameras">—</div>
+<div class="detail" id="cameras">Detecting…</div>
 </div>
 
 </div>
 
-<h2>Live sample</h2>
+<h2>Detected Home Assistant Areas</h2>
 
-<div class="card" id="sample">
-Waiting for states…
+<div class="area-list" id="areas">
+<div class="row">
+<span>Waiting for registry…</span>
+</div>
+</div>
+
+<h2>Integration snapshot</h2>
+
+<div class="area-list" id="platforms">
+<div class="row">
+<span>Waiting…</span>
+</div>
 </div>
 
 </main>
 
 <script>
+const base = location.pathname.replace(/\/$/, '');
 
-const base =
-  location.pathname.replace(/\/$/,'');
+let stateMap = new Map();
+
+function stateFor(id) {
+  return stateMap.get(id);
+}
+
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
+function matches(name, words) {
+  name = (name || '').toLowerCase();
+
+  return words.some(word =>
+    name.includes(word)
+  );
+}
 
 fetch(base + '/api/bootstrap')
-
 .then(response => {
-  if (!response.ok)
+  if (!response.ok) {
     throw Error('API ' + response.status);
+  }
 
   return response.json();
 })
-
 .then(data => {
 
-  const states = data.states || [];
   const config = data.config || {};
+  const states = data.states || [];
+  const areas = data.areas || [];
+  const devices = data.devices || [];
+  const entities = data.entities || [];
+
+  stateMap = new Map(
+    states.map(state => [
+      state.entity_id,
+      state
+    ])
+  );
+
+  const deviceMap = new Map(
+    devices.map(device => [
+      device.id,
+      device
+    ])
+  );
+
+  function effectiveArea(entity) {
+    if (entity.area_id) {
+      return entity.area_id;
+    }
+
+    const device =
+      deviceMap.get(entity.device_id);
+
+    if (device && device.area_id) {
+      return device.area_id;
+    }
+
+    return null;
+  }
+
+  const enabledEntities =
+    entities.filter(entity =>
+      !entity.disabled_by &&
+      stateMap.has(entity.entity_id)
+    );
+
+  const entitiesByArea = new Map();
+
+  enabledEntities.forEach(entity => {
+
+    const areaId =
+      effectiveArea(entity);
+
+    if (!areaId) {
+      return;
+    }
+
+    if (!entitiesByArea.has(areaId)) {
+      entitiesByArea.set(
+        areaId,
+        []
+      );
+    }
+
+    entitiesByArea
+      .get(areaId)
+      .push(entity);
+  });
+
+  function findAreas(words) {
+    return areas.filter(area =>
+      matches(area.name, words)
+    );
+  }
+
+  function summarizeAreas(found) {
+    if (!found.length) {
+      return 'No matching HA Area yet • mapping needed';
+    }
+
+    let count = 0;
+
+    found.forEach(area => {
+      count += (
+        entitiesByArea.get(area.area_id) || []
+      ).length;
+    });
+
+    return (
+      found.map(area => area.name).join(' + ') +
+      ' • ' +
+      plural(count, 'entity')
+    );
+  }
+
+  const bedroomAreas = findAreas([
+    'bedroom',
+    'bed room',
+    'primary',
+    'master',
+    'bath'
+  ]);
+
+  const mainFloorAreas = findAreas([
+    'kitchen',
+    'living',
+    'family',
+    'dining',
+    'main floor'
+  ]);
+
+  const loftAreas = findAreas([
+    'loft'
+  ]);
+
+  const garageAreas = findAreas([
+    'garage'
+  ]);
+
+  document.getElementById('bedroom').textContent =
+    summarizeAreas(bedroomAreas);
+
+  document.getElementById('mainfloor').textContent =
+    summarizeAreas(mainFloorAreas);
+
+  document.getElementById('loft').textContent =
+    summarizeAreas(loftAreas);
+
+  document.getElementById('garage').textContent =
+    summarizeAreas(garageAreas);
+
+  const lights =
+    enabledEntities.filter(entity =>
+      entity.entity_id.startsWith('light.')
+    );
+
+  const onLights =
+    lights.filter(entity =>
+      stateFor(entity.entity_id)?.state === 'on'
+    );
+
+  document.getElementById('lighting').textContent =
+    `${plural(lights.length, 'light')} • ${onLights.length} on`;
+
+  const cameras =
+    enabledEntities.filter(entity =>
+      entity.entity_id.startsWith('camera.')
+    );
+
+  const cameraPlatforms = [
+    ...new Set(
+      cameras
+        .map(entity => entity.platform)
+        .filter(Boolean)
+    )
+  ];
+
+  document.getElementById('cameras').innerHTML =
+    `${plural(cameras.length, 'camera')}<br>` +
+    cameraPlatforms.map(platform =>
+      `<span class="pill">${platform}</span>`
+    ).join('');
 
   document.getElementById('title').textContent =
     config.location_name || 'Home';
 
   document.getElementById('subtitle').textContent =
-    'Home Assistant ' +
-    (config.version || '') +
-    ' • read-only';
+    `Home Assistant ${config.version || ''} • read-only`;
 
   document.getElementById('ha').innerHTML =
     '<span class="good">Linked</span>';
 
-  document.getElementById('entities').textContent =
+  document.getElementById('areaCount').textContent =
+    areas.length;
+
+  document.getElementById('entityCount').textContent =
     states.length;
 
-  document.getElementById('active').textContent =
-    states.filter(x =>
-      ['on','open','playing','home']
-      .includes(x.state)
-    ).length;
-
-  document.getElementById('lights').textContent =
-    states.filter(x =>
-      x.entity_id.startsWith('light.')
-    ).length +
-    ' HA light entities';
-
-  document.getElementById('cameras').textContent =
-    states.filter(x =>
-      x.entity_id.startsWith('camera.')
-    ).length +
-    ' HA camera entities';
-
   document.getElementById('banner').innerHTML =
-    '<span class="good">● Connected</span> ' +
-    '— real HA state data is reaching Home Control. ' +
-    'Controls are disabled.';
+    '<span class="good">● Registry linked</span> — ' +
+    'Home Control is now using your real Areas, devices and entities. ' +
+    'Controls remain disabled.';
 
-  const sample =
-    states
-    .filter(x =>
-      !['unknown','unavailable']
-      .includes(x.state)
+  const areaRows = [...areas]
+    .sort((a, b) =>
+      a.name.localeCompare(b.name)
     )
-    .slice(0,8);
+    .map(area => {
 
-  document.getElementById('sample').innerHTML =
-    sample.map(x =>
-      '<div class="row">' +
-      '<span>' +
-      ((x.attributes || {}).friendly_name ||
-       x.entity_id) +
-      '</span>' +
-      '<b>' +
-      x.state +
-      '</b>' +
-      '</div>'
+      const list =
+        entitiesByArea.get(area.area_id) || [];
+
+      const active =
+        list.filter(entity => {
+
+          const state =
+            stateFor(entity.entity_id);
+
+          return state &&
+            [
+              'on',
+              'open',
+              'playing',
+              'home'
+            ].includes(state.state);
+
+        }).length;
+
+      return `
+        <div class="row">
+          <span>${area.name}</span>
+          <b>
+            ${plural(list.length, 'entity')}
+            ${active ? ` • ${active} active` : ''}
+          </b>
+        </div>
+      `;
+    })
+    .join('');
+
+  document.getElementById('areas').innerHTML =
+    areaRows ||
+    '<div class="row"><span>No HA Areas found</span></div>';
+
+  const platformCounts = {};
+
+  enabledEntities.forEach(entity => {
+    const platform =
+      entity.platform || 'unknown';
+
+    platformCounts[platform] =
+      (platformCounts[platform] || 0) + 1;
+  });
+
+  const importantPlatforms =
+    Object.entries(platformCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12);
+
+  document.getElementById('platforms').innerHTML =
+    importantPlatforms.map(
+      ([platform, count]) => `
+        <div class="row">
+          <span>${platform}</span>
+          <b>${plural(count, 'entity')}</b>
+        </div>
+      `
     ).join('');
 
 })
-
 .catch(error => {
 
   document.getElementById('title').textContent =
     'Connection issue';
 
-  document.getElementById('banner').textContent =
-    'UI loaded, but HA API failed: ' +
+  document.getElementById('banner').innerHTML =
+    '<span class="warn">● Error</span> ' +
     error.message;
 
 });
 
 </script>
-
 </body>
 </html>
