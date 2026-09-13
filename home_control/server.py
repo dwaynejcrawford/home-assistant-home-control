@@ -181,21 +181,33 @@ async def call_service(request):
         service = data.get("service")
         entity_id = data.get("entity_id")
 
-        if domain != "light":
+        allowed_services = {
+            "light": {
+                "turn_on",
+                "turn_off",
+            },
+            "media_player": {
+                "media_play_pause",
+                "volume_mute",
+                "volume_set",
+            },
+        }
+
+        if domain not in allowed_services:
             return web.json_response(
-                {"error": "Only light controls are enabled"},
+                {"error": "Unsupported domain"},
                 status=403,
             )
 
-        if service not in {"turn_on", "turn_off"}:
+        if service not in allowed_services[domain]:
             return web.json_response(
-                {"error": "Unsupported light service"},
+                {"error": "Unsupported service"},
                 status=403,
             )
 
-        if not entity_id or not entity_id.startswith("light."):
+        if not entity_id or not entity_id.startswith(domain + "."):
             return web.json_response(
-                {"error": "Invalid light entity"},
+                {"error": "Invalid entity"},
                 status=400,
             )
 
@@ -223,6 +235,28 @@ async def call_service(request):
             )
 
             service_data["brightness_pct"] = brightness_pct
+
+        if domain == "media_player":
+            if service == "volume_mute":
+                service_data["is_volume_muted"] = bool(
+                    data.get("is_volume_muted")
+                )
+
+            if service == "volume_set":
+                try:
+                    volume_level = float(
+                        data.get("volume_level")
+                    )
+                except (TypeError, ValueError):
+                    return web.json_response(
+                        {"error": "Invalid volume"},
+                        status=400,
+                    )
+
+                service_data["volume_level"] = max(
+                    0.0,
+                    min(1.0, volume_level)
+                )
 
         async with ClientSession(
             timeout=ClientTimeout(total=15)

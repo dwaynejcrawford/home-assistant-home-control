@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.5.0</div>
+<div class="key">Home Control • 0.5.1</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -1165,21 +1165,108 @@ fetch(base + '/api/bootstrap')
           ? Math.round(volume * 100)
           : null;
 
+      const muted =
+        state?.attributes?.is_volume_muted === true;
+
       const details = [
         state?.state,
         source,
-        title,
-        volumePct !== null
-          ? `Vol ${volumePct}%`
-          : null
+        title
       ].filter(Boolean);
 
       return `
-        <div class="row">
-          <span>
+        <div style="
+          padding:13px 0;
+          border-bottom:1px solid var(--line);
+        ">
+          <div>
             <strong>${name}</strong>
-          </span>
-          <b>${details.join(' • ') || '—'}</b>
+          </div>
+
+          <div class="muted"
+               style="font-size:12px;margin-top:4px">
+            ${details.join(' • ') || 'Idle'}
+          </div>
+
+          <div style="
+            display:flex;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-top:10px;
+            align-items:center;
+          ">
+            <button
+              onclick="mediaPlayPause('${entity.entity_id}')"
+              style="
+                background:var(--card2);
+                color:var(--text);
+                border:1px solid var(--line);
+                border-radius:11px;
+                padding:7px 10px;
+                font:inherit;
+                font-size:12px;
+                font-weight:700;
+              ">
+              Play/Pause
+            </button>
+
+            ${volumePct !== null ? `
+              <button
+                onclick="mediaVolume(
+                  '${entity.entity_id}',
+                  ${Math.max(0, volumePct - 5)}
+                )"
+                style="
+                  background:var(--card2);
+                  color:var(--text);
+                  border:1px solid var(--line);
+                  border-radius:11px;
+                  padding:7px 10px;
+                  font:inherit;
+                ">
+                −
+              </button>
+
+              <span class="muted"
+                    style="font-size:12px">
+                Vol ${volumePct}%
+              </span>
+
+              <button
+                onclick="mediaVolume(
+                  '${entity.entity_id}',
+                  ${Math.min(100, volumePct + 5)}
+                )"
+                style="
+                  background:var(--card2);
+                  color:var(--text);
+                  border:1px solid var(--line);
+                  border-radius:11px;
+                  padding:7px 10px;
+                  font:inherit;
+                ">
+                +
+              </button>
+
+              <button
+                onclick="mediaMute(
+                  '${entity.entity_id}',
+                  ${!muted}
+                )"
+                style="
+                  background:var(--card2);
+                  color:var(--text);
+                  border:1px solid var(--line);
+                  border-radius:11px;
+                  padding:7px 10px;
+                  font:inherit;
+                  font-size:12px;
+                  font-weight:700;
+                ">
+                ${muted ? 'Unmute' : 'Mute'}
+              </button>
+            ` : ''}
+          </div>
         </div>
       `;
     }).join('');
@@ -1386,6 +1473,95 @@ fetch(base + '/api/bootstrap')
       );
     }
   };
+
+
+
+  async function callMediaService(
+    entityId,
+    service,
+    extra = {}
+  ) {
+    const response = await fetch(
+      base + '/api/service',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          domain: 'media_player',
+          service,
+          entity_id: entityId,
+          ...extra
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw Error(
+        'Media control failed: ' +
+        response.status
+      );
+    }
+
+    await refreshStates();
+  }
+
+
+  window.mediaPlayPause =
+    async function(entityId) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'media_play_pause'
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaMute =
+    async function(entityId, muted) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'volume_mute',
+        {
+          is_volume_muted: muted
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaVolume =
+    async function(entityId, percent) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'volume_set',
+        {
+          volume_level:
+            Math.max(
+              0,
+              Math.min(100, percent)
+            ) / 100
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
 
 
   window.closeRoom = function() {
