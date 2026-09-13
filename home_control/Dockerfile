@@ -11,5 +11,8 @@ RUN apk add --no-cache python3
 
 COPY server.py /server.py
 COPY www /www
+COPY run.sh /run.sh
 
-CMD ["python3", "/server.py"]
+RUN chmod a+x /run.sh
+
+CMD ["/run.sh"]
