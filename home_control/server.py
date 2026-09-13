@@ -199,6 +199,31 @@ async def call_service(request):
                 status=400,
             )
 
+        service_data = {
+            "entity_id": entity_id,
+        }
+
+        brightness_pct = data.get("brightness_pct")
+
+        if (
+            service == "turn_on"
+            and brightness_pct is not None
+        ):
+            try:
+                brightness_pct = int(brightness_pct)
+            except (TypeError, ValueError):
+                return web.json_response(
+                    {"error": "Invalid brightness"},
+                    status=400,
+                )
+
+            brightness_pct = max(
+                1,
+                min(100, brightness_pct)
+            )
+
+            service_data["brightness_pct"] = brightness_pct
+
         async with ClientSession(
             timeout=ClientTimeout(total=15)
         ) as session:
@@ -208,9 +233,7 @@ async def call_service(request):
                     "Authorization": f"Bearer {TOKEN}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "entity_id": entity_id,
-                },
+                json=service_data,
             ) as response:
                 response.raise_for_status()
                 result = await response.json()
