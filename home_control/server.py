@@ -298,6 +298,57 @@ async def call_service(request):
         )
 
 
+
+async def camera_image(request):
+    entity_id = request.match_info.get("entity_id", "")
+
+    if not entity_id.startswith("camera."):
+        return web.json_response(
+            {"error": "Invalid camera entity"},
+            status=400,
+        )
+
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=20)
+        ) as session:
+            async with session.get(
+                f"{REST}/camera_proxy/{entity_id}",
+                headers={
+                    "Authorization": f"Bearer {TOKEN}",
+                },
+            ) as response:
+                response.raise_for_status()
+
+                body = await response.read()
+
+                content_type = response.headers.get(
+                    "Content-Type",
+                    "image/jpeg"
+                )
+
+        return web.Response(
+            body=body,
+            content_type=content_type.split(";")[0],
+            headers={
+                "Cache-Control": "no-store"
+            },
+        )
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: CAMERA IMAGE ERROR:",
+            entity_id,
+            repr(error),
+            flush=True,
+        )
+
+        return web.json_response(
+            {"error": repr(error)},
+            status=502,
+        )
+
+
 async def index(request):
     return web.FileResponse(WWW / "index.html")
 
@@ -316,6 +367,7 @@ app.router.add_get("/", index)
 app.router.add_get("/api/bootstrap", bootstrap)
 app.router.add_get("/api/states", states)
 app.router.add_get("/api/health", health)
+app.router.add_get("/api/camera/{entity_id}", camera_image)
 app.router.add_post("/api/service", call_service)
 
 web.run_app(

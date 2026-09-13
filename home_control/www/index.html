@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.5.1</div>
+<div class="key">Home Control • 0.6.0</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -234,7 +234,7 @@ Reading your Home Assistant registries…
 <div class="detail" id="garage">Detecting…</div>
 </div>
 
-<div class="card favorite wide">
+<div class="card favorite wide" onclick="openCameras()">
 <div class="icon">◉</div>
 <strong>Cameras</strong>
 <div class="detail" id="cameras">Detecting…</div>
@@ -243,6 +243,34 @@ Reading your Home Assistant registries…
 </div>
 
 
+
+
+<div id="cameraDetail" style="display:none">
+
+<h2>Cameras</h2>
+
+<div class="banner" id="cameraSummary"
+     style="margin:0 0 18px 0">
+Loading cameras…
+</div>
+
+<div id="cameraDetailList"></div>
+
+<div style="margin-top:14px">
+<button onclick="closeCameras()"
+style="
+background:var(--card2);
+color:var(--text);
+border:1px solid var(--line);
+border-radius:14px;
+padding:10px 14px;
+font:inherit;
+">
+Back to favorites
+</button>
+</div>
+
+</div>
 
 <div id="lightingDetail" style="display:none">
 
@@ -592,6 +620,169 @@ fetch(base + '/api/bootstrap')
         </div>
       `
     ).join('');
+
+
+
+
+  window.openCameras = function() {
+    const cameras = enabledEntities
+      .filter(entity =>
+        entity.entity_id.startsWith('camera.')
+      )
+      .map(entity => {
+        const state =
+          stateMap.get(entity.entity_id);
+
+        const areaId =
+          effectiveArea(entity);
+
+        const areaName =
+          areas.find(area =>
+            area.area_id === areaId
+          )?.name || 'Unassigned';
+
+        const name =
+          entity.name ||
+          entity.original_name ||
+          state?.attributes?.friendly_name ||
+          entity.entity_id;
+
+        return {
+          entity,
+          state,
+          areaName,
+          name,
+          platform:
+            entity.platform || 'unknown'
+        };
+      });
+
+    cameras.sort((a, b) => {
+      const platformCompare =
+        a.platform.localeCompare(b.platform);
+
+      if (platformCompare !== 0) {
+        return platformCompare;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+
+    const available = cameras.filter(item =>
+      item.state?.state !== 'unavailable'
+    ).length;
+
+    document.getElementById(
+      'cameraSummary'
+    ).textContent =
+      `${cameras.length} cameras • ${available} available`;
+
+    const grouped = new Map();
+
+    cameras.forEach(item => {
+      if (!grouped.has(item.platform)) {
+        grouped.set(item.platform, []);
+      }
+
+      grouped.get(item.platform).push(item);
+    });
+
+    document.getElementById(
+      'cameraDetailList'
+    ).innerHTML =
+      [...grouped.entries()]
+        .map(([platform, items]) => `
+          <div style="margin-bottom:24px">
+
+            <div class="key"
+                 style="margin:0 0 9px 2px">
+              ${platform}
+            </div>
+
+            ${items.map(item => `
+              <div class="card"
+                   style="margin-bottom:12px">
+
+                <div style="
+                  aspect-ratio:16/9;
+                  overflow:hidden;
+                  border-radius:14px;
+                  background:var(--card2);
+                  margin-bottom:12px;
+                ">
+                  <img
+                    src="${base}/api/camera/${item.entity.entity_id}"
+                    alt="${item.name}"
+                    loading="lazy"
+                    style="
+                      width:100%;
+                      height:100%;
+                      object-fit:cover;
+                      display:block;
+                    "
+                    onerror="
+                      this.style.display='none'
+                    "
+                  >
+                </div>
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  gap:12px;
+                ">
+                  <span>
+                    <strong>${item.name}</strong><br>
+                    <span class="muted"
+                          style="font-size:12px">
+                      ${item.areaName}
+                    </span>
+                  </span>
+
+                  <b style="font-size:12px">
+                    ${item.state?.state || '—'}
+                  </b>
+                </div>
+
+              </div>
+            `).join('')}
+
+          </div>
+        `)
+        .join('');
+
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'block';
+
+    document.getElementById(
+      'lightingDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top:
+        document.getElementById(
+          'cameraDetail'
+        ).offsetTop - 20,
+      behavior: 'smooth'
+    });
+  };
+
+
+  window.closeCameras = function() {
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
 
 
