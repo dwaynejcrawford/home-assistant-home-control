@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.4.1</div>
+<div class="key">Home Control • 0.4.2</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -971,8 +971,36 @@ fetch(base + '/api/bootstrap')
       all.push(...list);
     });
 
+    const roomLights = all
+      .filter(entity =>
+        entity.entity_id.startsWith('light.')
+      )
+      .filter(entity => {
+        const state = stateMap.get(entity.entity_id);
+        return state?.state !== 'unavailable';
+      })
+      .sort((a, b) => {
+        const an =
+          a.name ||
+          a.original_name ||
+          stateMap.get(a.entity_id)?.attributes?.friendly_name ||
+          a.entity_id;
+
+        const bn =
+          b.name ||
+          b.original_name ||
+          stateMap.get(b.entity_id)?.attributes?.friendly_name ||
+          b.entity_id;
+
+        return an.localeCompare(bn);
+      });
+
+    const nonLights = all
+      .filter(entity =>
+        !entity.entity_id.startsWith('light.')
+      );
+
     const priority = [
-      'light.',
       'climate.',
       'media_player.',
       'cover.',
@@ -981,7 +1009,7 @@ fetch(base + '/api/bootstrap')
       'sensor.'
     ];
 
-    all.sort((a, b) => {
+    nonLights.sort((a, b) => {
       const ai = priority.findIndex(prefix =>
         a.entity_id.startsWith(prefix)
       );
@@ -993,26 +1021,135 @@ fetch(base + '/api/bootstrap')
       const av = ai === -1 ? 999 : ai;
       const bv = bi === -1 ? 999 : bi;
 
-      if (av !== bv) {
-        return av - bv;
-      }
+      if (av !== bv) return av - bv;
 
-      const an = (
+      const an =
         a.name ||
         a.original_name ||
-        a.entity_id
-      ).toLowerCase();
+        a.entity_id;
 
-      const bn = (
+      const bn =
         b.name ||
         b.original_name ||
-        b.entity_id
-      ).toLowerCase();
+        b.entity_id;
 
       return an.localeCompare(bn);
     });
 
-    const useful = all.slice(0, 30);
+    const lightRows = roomLights.map(entity => {
+      const state = stateMap.get(entity.entity_id);
+
+      const name =
+        entity.name ||
+        entity.original_name ||
+        state?.attributes?.friendly_name ||
+        entity.entity_id;
+
+      const brightness =
+        state?.attributes?.brightness;
+
+      const brightnessPct =
+        typeof brightness === 'number'
+          ? Math.round((brightness / 255) * 100)
+          : null;
+
+      const stateText =
+        state?.state === 'on'
+          ? 'On'
+          : state?.state === 'off'
+            ? 'Off'
+            : state?.state || '—';
+
+      const supportsBrightness =
+        state?.attributes?.supported_color_modes?.some(
+          mode => mode !== 'onoff'
+        ) ||
+        typeof brightness === 'number';
+
+      return `
+        <div style="
+          padding:13px 0;
+          border-bottom:1px solid var(--line);
+        ">
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:14px;
+          ">
+            <span>
+              <strong>${name}</strong>
+            </span>
+
+            <span style="
+              display:flex;
+              align-items:center;
+              gap:10px;
+            ">
+              <span class="muted" style="font-size:12px">
+                ${stateText}
+                ${brightnessPct !== null ? ` • ${brightnessPct}%` : ''}
+              </span>
+
+              <button
+                onclick="toggleLight('${entity.entity_id}')"
+                style="
+                  background:var(--card2);
+                  color:var(--text);
+                  border:1px solid var(--line);
+                  border-radius:12px;
+                  padding:7px 11px;
+                  font:inherit;
+                  font-size:12px;
+                  font-weight:700;
+                ">
+                ${state?.state === 'on' ? 'Turn off' : 'Turn on'}
+              </button>
+            </span>
+          </div>
+
+          ${supportsBrightness ? `
+            <div style="margin-top:10px">
+              <input
+                type="range"
+                min="1"
+                max="100"
+                value="${brightnessPct ?? 100}"
+                onchange="setLightBrightness(
+                  '${entity.entity_id}',
+                  this.value
+                )"
+                style="width:100%"
+              >
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+
+    const otherRows = nonLights
+      .slice(0, 20)
+      .map(entity => {
+        const state =
+          stateMap.get(entity.entity_id);
+
+        const name =
+          entity.name ||
+          entity.original_name ||
+          state?.attributes?.friendly_name ||
+          entity.entity_id;
+
+        return `
+          <div class="row">
+            <span>${name}</span>
+            <b>${state?.state ?? '—'}</b>
+          </div>
+        `;
+      }).join('');
+
+    const onCount = roomLights.filter(entity =>
+      stateMap.get(entity.entity_id)?.state === 'on'
+    ).length;
 
     document.getElementById(
       'roomDetailTitle'
@@ -1020,30 +1157,54 @@ fetch(base + '/api/bootstrap')
 
     document.getElementById(
       'roomDetailList'
-    ).innerHTML =
-      useful.length
-      ? useful.map(entity => {
-          const state =
-            stateMap.get(entity.entity_id);
+    ).innerHTML = `
+      <div class="banner" style="margin:0 0 16px 0">
+        ${roomLights.length} lights • ${onCount} on
+        ${roomLights.length ? `
+          <button
+            onclick="turnOffRoomLights('${key}')"
+            style="
+              float:right;
+              background:var(--card2);
+              color:var(--text);
+              border:1px solid var(--line);
+              border-radius:11px;
+              padding:5px 9px;
+              font:inherit;
+              font-size:11px;
+              font-weight:700;
+            ">
+            All Off
+          </button>
+        ` : ''}
+      </div>
 
-          const name =
-            entity.name ||
-            entity.original_name ||
-            state?.attributes?.friendly_name ||
-            entity.entity_id;
+      ${roomLights.length ? `
+        <div class="key" style="margin:0 0 8px 2px">
+          Lighting
+        </div>
+        <div class="area-list" style="margin-bottom:20px">
+          ${lightRows}
+        </div>
+      ` : ''}
 
-          return `
-            <div class="row">
-              <span>${name}</span>
-              <b>${state?.state ?? '—'}</b>
-            </div>
-          `;
-        }).join('')
-      : '<div class="row"><span>No entities found</span></div>';
+      ${otherRows ? `
+        <div class="key" style="margin:0 0 8px 2px">
+          Other devices
+        </div>
+        <div class="area-list">
+          ${otherRows}
+        </div>
+      ` : ''}
+    `;
 
     document.getElementById(
       'roomDetail'
     ).style.display = 'block';
+
+    document.getElementById(
+      'lightingDetail'
+    ).style.display = 'none';
 
     window.scrollTo({
       top:
@@ -1053,6 +1214,63 @@ fetch(base + '/api/bootstrap')
       behavior: 'smooth'
     });
   };
+
+
+  window.turnOffRoomLights = async function(key) {
+    const ids = window.favoriteAreaIds[key] || [];
+
+    const lights = [];
+
+    ids.forEach(areaId => {
+      const list = entitiesByArea.get(areaId) || [];
+
+      list.forEach(entity => {
+        if (
+          entity.entity_id.startsWith('light.') &&
+          stateMap.get(entity.entity_id)?.state === 'on'
+        ) {
+          lights.push(entity.entity_id);
+        }
+      });
+    });
+
+    try {
+      for (const entityId of lights) {
+        const response = await fetch(
+          base + '/api/service',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+            body: JSON.stringify({
+              domain: 'light',
+              service: 'turn_off',
+              entity_id: entityId
+            })
+          }
+        );
+
+        if (!response.ok) {
+          throw Error(
+            'Failed to turn off ' +
+            entityId
+          );
+        }
+      }
+
+      await refreshStates();
+      openRoom(key);
+
+    } catch (error) {
+      alert(
+        'Could not turn off room lights: ' +
+        error.message
+      );
+    }
+  };
+
 
   window.closeRoom = function() {
     document.getElementById(
