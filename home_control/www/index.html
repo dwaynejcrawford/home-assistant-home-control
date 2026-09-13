@@ -204,19 +204,19 @@ Reading your Home Assistant registries…
 
 <div class="grid">
 
-<div class="card favorite wide">
+<div class="card favorite wide" onclick="openRoom('bedroom')">
 <div class="icon">☾</div>
 <strong>Main Bedroom + Bathroom</strong>
 <div class="detail" id="bedroom">Detecting…</div>
 </div>
 
-<div class="card favorite">
+<div class="card favorite" onclick="openRoom('mainfloor')">
 <div class="icon">⌂</div>
 <strong>Main Floor</strong>
 <div class="detail" id="mainfloor">Detecting…</div>
 </div>
 
-<div class="card favorite">
+<div class="card favorite" onclick="openRoom('loft')">
 <div class="icon">▱</div>
 <strong>Loft</strong>
 <div class="detail" id="loft">Detecting…</div>
@@ -228,7 +228,7 @@ Reading your Home Assistant registries…
 <div class="detail" id="lighting">Detecting…</div>
 </div>
 
-<div class="card favorite">
+<div class="card favorite" onclick="openRoom('garage')">
 <div class="icon">▤</div>
 <strong>Garage</strong>
 <div class="detail" id="garage">Detecting…</div>
@@ -238,6 +238,33 @@ Reading your Home Assistant registries…
 <div class="icon">◉</div>
 <strong>Cameras</strong>
 <div class="detail" id="cameras">Detecting…</div>
+</div>
+
+</div>
+
+
+<div id="roomDetail" style="display:none">
+
+<h2 id="roomDetailTitle">Room</h2>
+
+<div class="area-list" id="roomDetailList">
+<div class="row">
+<span>Select a room</span>
+</div>
+</div>
+
+<div style="margin-top:14px">
+<button onclick="closeRoom()"
+style="
+background:var(--card2);
+color:var(--text);
+border:1px solid var(--line);
+border-radius:14px;
+padding:10px 14px;
+font:inherit;
+">
+Back to favorites
+</button>
 </div>
 
 </div>
@@ -381,28 +408,32 @@ fetch(base + '/api/bootstrap')
     );
   }
 
-  const bedroomAreas = findAreas([
-    'bedroom',
-    'bed room',
-    'primary',
-    'master',
-    'bath'
+  function exactAreas(names) {
+    const wanted = names.map(name => name.toLowerCase());
+
+    return areas.filter(area =>
+      wanted.includes(
+        (area.name || '').toLowerCase()
+      )
+    );
+  }
+
+  const bedroomAreas = exactAreas([
+    'Main Bedroom',
+    'Main Bathroom'
   ]);
 
-  const mainFloorAreas = findAreas([
-    'kitchen',
-    'living',
-    'family',
-    'dining',
-    'main floor'
+  const mainFloorAreas = exactAreas([
+    'Kitchen',
+    'Living Room'
   ]);
 
-  const loftAreas = findAreas([
-    'loft'
+  const loftAreas = exactAreas([
+    'Loft'
   ]);
 
-  const garageAreas = findAreas([
-    'garage'
+  const garageAreas = exactAreas([
+    'Garage'
   ]);
 
   document.getElementById('bedroom').textContent =
@@ -536,6 +567,127 @@ fetch(base + '/api/bootstrap')
     ).join('');
 
 })
+
+  window.favoriteAreaIds = {
+    bedroom: bedroomAreas.map(area => area.area_id),
+    mainfloor: mainFloorAreas.map(area => area.area_id),
+    loft: loftAreas.map(area => area.area_id),
+    garage: garageAreas.map(area => area.area_id)
+  };
+
+  window.favoriteTitles = {
+    bedroom: 'Main Bedroom + Bathroom',
+    mainfloor: 'Main Floor',
+    loft: 'Loft',
+    garage: 'Garage'
+  };
+
+  window.openRoom = function(key) {
+    const ids = window.favoriteAreaIds[key] || [];
+    const title = window.favoriteTitles[key] || 'Room';
+
+    const all = [];
+
+    ids.forEach(areaId => {
+      const list = entitiesByArea.get(areaId) || [];
+      all.push(...list);
+    });
+
+    const priority = [
+      'light.',
+      'climate.',
+      'media_player.',
+      'cover.',
+      'lock.',
+      'binary_sensor.',
+      'sensor.'
+    ];
+
+    all.sort((a, b) => {
+      const ai = priority.findIndex(prefix =>
+        a.entity_id.startsWith(prefix)
+      );
+
+      const bi = priority.findIndex(prefix =>
+        b.entity_id.startsWith(prefix)
+      );
+
+      const av = ai === -1 ? 999 : ai;
+      const bv = bi === -1 ? 999 : bi;
+
+      if (av !== bv) {
+        return av - bv;
+      }
+
+      const an = (
+        a.name ||
+        a.original_name ||
+        a.entity_id
+      ).toLowerCase();
+
+      const bn = (
+        b.name ||
+        b.original_name ||
+        b.entity_id
+      ).toLowerCase();
+
+      return an.localeCompare(bn);
+    });
+
+    const useful = all.slice(0, 30);
+
+    document.getElementById(
+      'roomDetailTitle'
+    ).textContent = title;
+
+    document.getElementById(
+      'roomDetailList'
+    ).innerHTML =
+      useful.length
+      ? useful.map(entity => {
+          const state =
+            stateMap.get(entity.entity_id);
+
+          const name =
+            entity.name ||
+            entity.original_name ||
+            state?.attributes?.friendly_name ||
+            entity.entity_id;
+
+          return `
+            <div class="row">
+              <span>${name}</span>
+              <b>${state?.state ?? '—'}</b>
+            </div>
+          `;
+        }).join('')
+      : '<div class="row"><span>No entities found</span></div>';
+
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'block';
+
+    window.scrollTo({
+      top:
+        document.getElementById(
+          'roomDetail'
+        ).offsetTop - 20,
+      behavior: 'smooth'
+    });
+  };
+
+  window.closeRoom = function() {
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+
 .catch(error => {
 
   document.getElementById('title').textContent =
