@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.8.2</div>
+<div class="key">Home Control • 0.8.3</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -829,6 +829,20 @@ fetch(base + '/api/bootstrap')
                 </div>
 
                 ${item.recordingEntity ? `
+                  <div class="muted"
+                       style="
+                         margin-top:10px;
+                         font-size:10px;
+                         overflow-wrap:anywhere;
+                       ">
+                    ${JSON.stringify(
+                      signals.find(signal =>
+                        signal.entity_id ===
+                        item.recordingEntity
+                      )?.attributes || {}
+                    )}
+                  </div>
+
                   <div style="margin-top:12px">
                     <button
                       onclick="openLastRecording(
