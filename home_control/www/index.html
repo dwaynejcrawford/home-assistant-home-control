@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.2</div>
+<div class="key">Home Control • 1.0.3</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -206,7 +206,7 @@ Reading your Home Assistant registries…
 
 <div class="card favorite wide" onclick="openRoom('bedroom')">
 <div class="icon">☾</div>
-<strong>Main Bedroom + Bathroom</strong>
+<strong>Main Bedroom</strong>
 <div class="detail" id="bedroom">Detecting…</div>
 </div>
 
@@ -1564,7 +1564,7 @@ fetch(base + '/api/bootstrap')
   };
 
   window.favoriteTitles = {
-    bedroom: 'Main Bedroom + Bathroom',
+    bedroom: 'Main Bedroom',
     mainfloor: 'Main Floor',
     loft: 'Loft',
     garage: 'Garage'
@@ -1580,6 +1580,30 @@ fetch(base + '/api/bootstrap')
       const list = entitiesByArea.get(areaId) || [];
       all.push(...list);
     });
+
+    function isLightGroup(entity) {
+      const state = stateMap.get(entity.entity_id);
+      const name = (
+        entity.name ||
+        entity.original_name ||
+        state?.attributes?.friendly_name ||
+        entity.entity_id
+      ).toLowerCase();
+
+      const memberIds =
+        state?.attributes?.entity_id;
+
+      const hasMembers =
+        Array.isArray(memberIds) &&
+        memberIds.length > 1;
+
+      const looksGroupedByName =
+        name.endsWith(' lights') ||
+        name.includes(' light group');
+
+      return hasMembers || looksGroupedByName;
+    }
+
 
     const roomLights = all
       .filter(entity =>
@@ -1646,7 +1670,7 @@ fetch(base + '/api/bootstrap')
       return an.localeCompare(bn);
     });
 
-    const lightRows = roomLights.map(entity => {
+    function renderLightControl(entity, prominent = false) {
       const state = stateMap.get(entity.entity_id);
 
       const name =
@@ -1678,8 +1702,10 @@ fetch(base + '/api/bootstrap')
 
       return `
         <div style="
-          padding:13px 0;
-          border-bottom:1px solid var(--line);
+          padding:${prominent ? '16px' : '12px 0'};
+          ${prominent
+            ? 'background:var(--card2);border:1px solid var(--line);border-radius:16px;margin-bottom:12px;'
+            : 'border-bottom:1px solid var(--line);'}
         ">
           <div style="
             display:flex;
@@ -1688,7 +1714,10 @@ fetch(base + '/api/bootstrap')
             gap:14px;
           ">
             <span>
-              <strong>${name}</strong>
+              ${prominent ? '<div class="key" style="margin-bottom:4px">Group control</div>' : ''}
+              <strong style="${prominent ? 'font-size:16px;' : ''}">
+                ${name}
+              </strong>
             </span>
 
             <span style="
@@ -1704,8 +1733,8 @@ fetch(base + '/api/bootstrap')
               <button
                 onclick="toggleLight('${entity.entity_id}')"
                 style="
-                  background:var(--card2);
-                  color:var(--text);
+                  background:${prominent ? 'var(--text)' : 'var(--card2)'};
+                  color:${prominent ? 'var(--bg)' : 'var(--text)'};
                   border:1px solid var(--line);
                   border-radius:12px;
                   padding:7px 11px;
@@ -1735,7 +1764,29 @@ fetch(base + '/api/bootstrap')
           ` : ''}
         </div>
       `;
-    }).join('');
+    }
+
+    const groupLights =
+      roomLights.filter(isLightGroup);
+
+    const individualLights =
+      roomLights.filter(entity =>
+        !isLightGroup(entity)
+      );
+
+    const groupRows =
+      groupLights
+        .map(entity =>
+          renderLightControl(entity, true)
+        )
+        .join('');
+
+    const individualRows =
+      individualLights
+        .map(entity =>
+          renderLightControl(entity, false)
+        )
+        .join('');
 
     const mediaEntities = nonLights.filter(entity =>
       entity.entity_id.startsWith('media_player.')
@@ -2020,7 +2071,7 @@ fetch(base + '/api/bootstrap')
     ).innerHTML = `
       ${temperatureAudit.length ? `
         <div class="banner" style="margin:0 0 12px 0">
-          <strong>Temperature audit</strong>
+          <strong style="display:none">Temperature audit</strong>
 
           <div style="
             margin-top:8px;
@@ -2076,6 +2127,101 @@ fetch(base + '/api/bootstrap')
         </div>
       </div>
 
+      ${key === 'bedroom' ? `
+        <div class="key" style="margin:0 0 8px 2px">
+          Climate
+        </div>
+
+        <div class="card"
+             style="margin-bottom:20px">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:16px;
+          ">
+            <div>
+              <div class="key">Main Bedroom</div>
+
+              <div style="
+                font-size:34px;
+                font-weight:800;
+                letter-spacing:-.04em;
+                margin-top:3px;
+              ">
+                ${bedroomTempValue ?? '—'}${bedroomTempUnit}
+              </div>
+
+              <div class="muted"
+                   style="font-size:11px;margin-top:2px">
+                Room temperature
+              </div>
+            </div>
+
+            <div style="text-align:right">
+              <div class="key">Thermostat</div>
+
+              <div style="
+                font-size:17px;
+                font-weight:800;
+                margin-top:5px;
+                text-transform:capitalize;
+              ">
+                ${thermostatMode}
+              </div>
+
+              <div class="muted"
+                   style="
+                     font-size:11px;
+                     margin-top:2px;
+                     text-transform:capitalize;
+                   ">
+                ${thermostatAction}
+              </div>
+            </div>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:10px;
+            margin-top:16px;
+          ">
+            <div style="
+              background:var(--card2);
+              border-radius:14px;
+              padding:11px;
+            ">
+              <div class="key">House temp</div>
+              <strong style="display:block;margin-top:4px">
+                ${thermostatCurrent ?? '—'}°
+              </strong>
+            </div>
+
+            <div style="
+              background:var(--card2);
+              border-radius:14px;
+              padding:11px;
+            ">
+              <div class="key">Target</div>
+              <strong style="display:block;margin-top:4px">
+                ${
+                  thermostatTarget !== undefined
+                    ? thermostatTarget + '°'
+                    : (
+                        thermostatLow !== undefined &&
+                        thermostatHigh !== undefined
+                      )
+                      ? thermostatLow + '–' + thermostatHigh + '°'
+                      : '—'
+                }
+              </strong>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+
       <div class="banner" style="margin:0 0 16px 0">
         ${roomLights.length} lights • ${onCount} on
         ${roomLights.length ? `
@@ -2101,9 +2247,24 @@ fetch(base + '/api/bootstrap')
         <div class="key" style="margin:0 0 8px 2px">
           Lighting
         </div>
-        <div class="area-list" style="margin-bottom:20px">
-          ${lightRows}
-        </div>
+
+        ${groupRows ? `
+          <div style="margin-bottom:12px">
+            ${groupRows}
+          </div>
+        ` : ''}
+
+        ${individualRows ? `
+          <div class="key"
+               style="margin:0 0 6px 2px">
+            Individual lights
+          </div>
+
+          <div class="area-list"
+               style="margin-bottom:20px">
+            ${individualRows}
+          </div>
+        ` : ''}
       ` : ''}
 
       ${mediaRows ? `
