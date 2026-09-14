@@ -17,6 +17,9 @@
   --muted:#97a4b1;
   --good:#35d07f;
   --warn:#ffb020;
+  --bad:#ff5d5d;
+  --active:#7cc7ff;
+  --radius:18px;
 }
 
 * { box-sizing:border-box; }
@@ -39,7 +42,7 @@ main {
 
 h1 {
   font-size:34px;
-  letter-spacing:-.045em;
+  letter-spacing:0;
   margin:2px 0 4px;
 }
 
@@ -65,7 +68,7 @@ h2 {
   padding:13px 15px;
   border:1px solid var(--line);
   background:var(--card);
-  border-radius:16px;
+  border-radius:var(--radius);
   font-size:13px;
 }
 
@@ -73,14 +76,70 @@ h2 {
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:9px;
-  margin:13px 0 23px;
+  margin:0 0 23px;
 }
 
 .card {
   border:1px solid var(--line);
   background:var(--card);
-  border-radius:20px;
+  border-radius:var(--radius);
   padding:15px;
+}
+
+.section {
+  margin-top:27px;
+}
+
+.section h2 {
+  margin-top:0;
+}
+
+.status-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.status-card {
+  min-height:108px;
+}
+
+.status-card.wide {
+  grid-column:span 2;
+}
+
+.status-topline {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.status-dot {
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:var(--muted);
+  flex:0 0 auto;
+}
+
+.status-dot.good { background:var(--good); }
+.status-dot.warn { background:var(--warn); }
+.status-dot.bad { background:var(--bad); }
+.status-dot.active { background:var(--active); }
+
+.status-value {
+  margin-top:10px;
+  font-size:18px;
+  font-weight:800;
+  line-height:1.2;
+}
+
+.status-note {
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.35;
+  margin-top:5px;
 }
 
 .value {
@@ -99,6 +158,7 @@ h2 {
   min-height:142px;
   display:flex;
   flex-direction:column;
+  cursor:pointer;
 }
 
 .favorite.wide {
@@ -132,7 +192,7 @@ h2 {
 .area-list {
   border:1px solid var(--line);
   background:var(--card);
-  border-radius:20px;
+  border-radius:var(--radius);
   padding:3px 15px;
 }
 
@@ -170,37 +230,27 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.6</div>
+<div class="key">Home Control • 1.0.7</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
 Discovering Home Assistant Areas and devices
 </div>
 
-<div class="banner" id="banner">
-Reading your Home Assistant registries…
+<section class="section">
+<h2>Home Status</h2>
+
+<div class="status-grid" id="homeStatus">
+<div class="card status-card wide">
+<div class="key">Status</div>
+<div class="status-value">Reading Home Assistant…</div>
+<div class="status-note">Household signals will appear here.</div>
 </div>
-
-<div class="summary">
-
-<div class="card">
-<div class="key">HA</div>
-<div class="value" id="ha">—</div>
 </div>
+</section>
 
-<div class="card">
-<div class="key">Areas</div>
-<div class="value" id="areaCount">—</div>
-</div>
-
-<div class="card">
-<div class="key">Entities</div>
-<div class="value" id="entityCount">—</div>
-</div>
-
-</div>
-
-<h2>Your favorites</h2>
+<section class="section">
+<h2>Favorites</h2>
 
 <div class="grid">
 
@@ -241,9 +291,7 @@ Reading your Home Assistant registries…
 </div>
 
 </div>
-
-
-
+</section>
 
 <div id="cameraDetail" style="display:none">
 
@@ -382,6 +430,31 @@ Back to favorites
 </div>
 </div>
 
+<h2>System</h2>
+
+<div class="banner" id="banner">
+Reading your Home Assistant registries…
+</div>
+
+<div class="summary">
+
+<div class="card">
+<div class="key">HA</div>
+<div class="value" id="ha">—</div>
+</div>
+
+<div class="card">
+<div class="key">Areas</div>
+<div class="value" id="areaCount">—</div>
+</div>
+
+<div class="card">
+<div class="key">Entities</div>
+<div class="value" id="entityCount">—</div>
+</div>
+
+</div>
+
 </main>
 
 <script>
@@ -432,6 +505,62 @@ function matches(name, words) {
   return words.some(word =>
     name.includes(word)
   );
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function friendlyState(value) {
+  if (!value) {
+    return 'Unknown';
+  }
+
+  return String(value)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter =>
+      letter.toUpperCase()
+    );
+}
+
+function stateName(state) {
+  return (
+    state?.attributes?.friendly_name ||
+    state?.entity_id ||
+    'Unknown'
+  );
+}
+
+function stateMatches(state, terms) {
+  const text = (
+    state?.entity_id + ' ' +
+    stateName(state)
+  ).toLowerCase();
+
+  return terms.some(term =>
+    text.includes(term)
+  );
+}
+
+function renderStatusCard(card) {
+  const wide = card.wide ? ' wide' : '';
+  const tone = card.tone || '';
+
+  return `
+    <div class="card status-card${wide}">
+      <div class="status-topline">
+        <div class="key">${escapeHtml(card.label)}</div>
+        <span class="status-dot ${escapeHtml(tone)}"></span>
+      </div>
+      <div class="status-value">${escapeHtml(card.value)}</div>
+      <div class="status-note">${escapeHtml(card.note)}</div>
+    </div>
+  `;
 }
 
 fetch(base + '/api/bootstrap')
@@ -604,11 +733,255 @@ fetch(base + '/api/bootstrap')
       `<span class="pill">${platform}</span>`
     ).join('');
 
+  function renderHomeStatus() {
+    const lockStates = states.filter(state =>
+      state.entity_id.startsWith('lock.')
+    );
+
+    const unlockedLocks = lockStates.filter(state =>
+      ![
+        'locked',
+        'unavailable',
+        'unknown'
+      ].includes(state.state)
+    );
+
+    const doorStates = states.filter(state =>
+      (
+        state.entity_id.startsWith('binary_sensor.') &&
+        [
+          'door',
+          'garage_door',
+          'opening'
+        ].includes(state.attributes?.device_class)
+      ) ||
+      state.entity_id.startsWith('cover.')
+    );
+
+    const openDoors = doorStates.filter(state =>
+      ['on', 'open', 'opening'].includes(state.state)
+    );
+
+    const garageState = states.find(state =>
+      stateMatches(state, ['garage']) &&
+      (
+        state.entity_id.startsWith('cover.') ||
+        state.attributes?.device_class === 'garage_door'
+      )
+    );
+
+    const alarmState = states.find(state =>
+      state.entity_id.startsWith('alarm_control_panel.')
+    );
+
+    const thermostatState =
+      stateMap.get('climate.thermostat');
+
+    const thermostatAttrs =
+      thermostatState?.attributes || {};
+
+    const bedroomTemperature =
+      stateMap.get(
+        'sensor.main_bedroom_main_bedroom_echo_dot_main_bedroom_temperature'
+      );
+
+    const climateParts = [];
+
+    if (
+      typeof thermostatAttrs.current_temperature !== 'undefined'
+    ) {
+      climateParts.push(
+        'House ' +
+        thermostatAttrs.current_temperature +
+        (thermostatAttrs.temperature_unit || '°')
+      );
+    }
+
+    if (bedroomTemperature?.state) {
+      climateParts.push(
+        'Bedroom ' +
+        bedroomTemperature.state +
+        (
+          bedroomTemperature.attributes
+            ?.unit_of_measurement || '°'
+        )
+      );
+    }
+
+    const onlineCameras = cameras.filter(entity => {
+      const state = stateFor(entity.entity_id);
+      return ![
+        'unavailable',
+        'unknown'
+      ].includes(state?.state);
+    });
+
+    const networkStates = states.filter(state =>
+      stateMatches(
+        state,
+        [
+          'unifi',
+          'ucg',
+          'wan',
+          'internet',
+          'wifi',
+          'wi-fi',
+          'access point'
+        ]
+      )
+    );
+
+    const wanStates = networkStates.filter(state =>
+      stateMatches(
+        state,
+        ['wan', 'internet']
+      )
+    );
+
+    const apStates = networkStates.filter(state =>
+      stateMatches(
+        state,
+        ['access point', 'ap ', 'u6', 'u7', 'wifi', 'wi-fi']
+      )
+    );
+
+    const cards = [];
+
+    cards.push({
+      label: 'Doors',
+      value:
+        lockStates.length || doorStates.length
+          ? [
+              unlockedLocks.length
+                ? plural(unlockedLocks.length, 'lock') + ' unlocked'
+                : lockStates.length
+                  ? 'All locks secure'
+                  : null,
+              openDoors.length
+                ? plural(openDoors.length, 'door') + ' open'
+                : doorStates.length
+                  ? 'Doors closed'
+                  : null
+            ].filter(Boolean).join(' • ')
+          : 'No door data',
+      note:
+        unlockedLocks[0]
+          ? stateName(unlockedLocks[0])
+          : openDoors[0]
+            ? stateName(openDoors[0])
+            : 'Derived from lock, door, and cover entities.',
+      tone:
+        unlockedLocks.length || openDoors.length
+          ? 'warn'
+          : lockStates.length || doorStates.length
+            ? 'good'
+            : '',
+      wide: true
+    });
+
+    cards.push({
+      label: 'Cameras',
+      value:
+        cameras.length
+          ? plural(onlineCameras.length, 'camera') + ' online'
+          : 'No camera data',
+      note:
+        cameras.length
+          ? plural(cameras.length, 'visible camera') +
+            ' after duplicate filtering.'
+          : 'No camera entities were discovered.',
+      tone:
+        cameras.length && onlineCameras.length === cameras.length
+          ? 'good'
+          : cameras.length
+            ? 'warn'
+            : ''
+    });
+
+    cards.push({
+      label: 'Climate',
+      value:
+        climateParts.length
+          ? climateParts.join(' • ')
+          : 'No temperature data',
+      note:
+        thermostatState
+          ? 'Whole-home thermostat is ' +
+            friendlyState(thermostatState.state) + '.'
+          : 'Thermostat data is unavailable.',
+      tone:
+        climateParts.length
+          ? 'good'
+          : ''
+    });
+
+    cards.push({
+      label: 'Garage',
+      value:
+        garageState
+          ? friendlyState(garageState.state)
+          : 'No garage state',
+      note:
+        garageState
+          ? stateName(garageState)
+          : 'Garage entities were not identified.',
+      tone:
+        garageState?.state === 'closed' ||
+        garageState?.state === 'off'
+          ? 'good'
+          : garageState
+            ? 'warn'
+            : ''
+    });
+
+    cards.push({
+      label: 'Security',
+      value:
+        alarmState
+          ? friendlyState(alarmState.state)
+          : 'No alarm data',
+      note:
+        alarmState
+          ? stateName(alarmState)
+          : 'No alarm panel entity was discovered.',
+      tone:
+        alarmState?.state === 'armed_home' ||
+        alarmState?.state === 'armed_away'
+          ? 'active'
+          : alarmState?.state === 'disarmed'
+            ? 'good'
+            : ''
+    });
+
+    cards.push({
+      label: 'Network',
+      value:
+        networkStates.length
+          ? plural(networkStates.length, 'signal') + ' available'
+          : 'No network telemetry',
+      note:
+        networkStates.length
+          ? plural(wanStates.length, 'WAN signal') +
+            ' • ' +
+            plural(apStates.length, 'Wi-Fi/AP signal')
+          : 'A dedicated Network page can be added next.',
+      tone:
+        networkStates.length
+          ? 'active'
+          : ''
+    });
+
+    document.getElementById('homeStatus').innerHTML =
+      cards.map(renderStatusCard).join('');
+  }
+
+  renderHomeStatus();
+
   document.getElementById('title').textContent =
     config.location_name || 'Home';
 
   document.getElementById('subtitle').textContent =
-    `Home Assistant ${config.version || ''} • read-only`;
+    `Home Assistant ${config.version || ''} • live household controls`;
 
   document.getElementById('ha').innerHTML =
     '<span class="good">Linked</span>';
@@ -621,8 +994,8 @@ fetch(base + '/api/bootstrap')
 
   document.getElementById('banner').innerHTML =
     '<span class="good">● Registry linked</span> — ' +
-    'Home Control is now using your real Areas, devices and entities. ' +
-    'Controls remain disabled.';
+    'Home Control is using real Areas, devices, and entities. ' +
+    'Service actions remain server allowlisted.';
 
   const areaRows = [...areas]
     .sort((a, b) =>
@@ -2531,6 +2904,15 @@ fetch(base + '/api/bootstrap')
 
   document.getElementById('title').textContent =
     'Connection issue';
+
+  document.getElementById('homeStatus').innerHTML =
+    renderStatusCard({
+      label: 'Home Assistant',
+      value: 'Unavailable',
+      note: error.message,
+      tone: 'warn',
+      wide: true
+    });
 
   document.getElementById('banner').innerHTML =
     '<span class="warn">● Error</span> ' +
