@@ -461,15 +461,24 @@ async def camera_signals(request):
 
             useful_attributes = {}
 
-            for key in [
-                "device_class",
-                "friendly_name",
-                "event_types",
-                "event_type",
-                "attribution",
-            ]:
-                if key in attrs:
-                    useful_attributes[key] = attrs[key]
+            if (
+                domain == "camera"
+                and entity_id.endswith(
+                    "_last_recording"
+                )
+            ):
+                useful_attributes = dict(attrs)
+
+            else:
+                for key in [
+                    "device_class",
+                    "friendly_name",
+                    "event_types",
+                    "event_type",
+                    "attribution",
+                ]:
+                    if key in attrs:
+                        useful_attributes[key] = attrs[key]
 
             results.append({
                 "entity_id": entity_id,
