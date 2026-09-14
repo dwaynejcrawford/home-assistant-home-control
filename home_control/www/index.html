@@ -224,13 +224,35 @@ h2 {
   color:var(--muted);
   font-size:10px;
 }
+
+.swatch-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.swatch {
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:2px solid rgba(255,255,255,.72);
+  box-shadow:0 0 0 1px var(--line);
+}
+
+.control-label {
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  margin-top:10px;
+}
 </style>
 </head>
 
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.7</div>
+<div class="key">Home Control • 1.0.8</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -1828,7 +1850,17 @@ fetch(base + '/api/bootstrap')
   }
 
 
-  window.toggleLight = async function(entityId) {
+  function refreshLightView(roomKey) {
+    if (roomKey) {
+      openRoom(roomKey);
+      return;
+    }
+
+    openLighting();
+  }
+
+
+  window.toggleLight = async function(entityId, roomKey = '') {
     const current =
       stateMap.get(entityId);
 
@@ -1866,7 +1898,7 @@ fetch(base + '/api/bootstrap')
       }
 
       await refreshStates();
-      openLighting();
+      refreshLightView(roomKey);
 
     } catch (error) {
       alert(
@@ -1878,7 +1910,7 @@ fetch(base + '/api/bootstrap')
 
 
   window.setLightBrightness =
-    async function(entityId, value) {
+    async function(entityId, value, roomKey = '') {
 
     try {
       const response = await fetch(
@@ -1906,11 +1938,99 @@ fetch(base + '/api/bootstrap')
       }
 
       await refreshStates();
-      openLighting();
+      refreshLightView(roomKey);
 
     } catch (error) {
       alert(
         'Could not change brightness: ' +
+        error.message
+      );
+    }
+  };
+
+
+  window.setLightColorTemperature =
+    async function(entityId, value, roomKey = '') {
+
+    try {
+      const response = await fetch(
+        base + '/api/service',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+          body: JSON.stringify({
+            domain: 'light',
+            service: 'turn_on',
+            entity_id: entityId,
+            color_temp_kelvin: Number(value)
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Color temperature failed: ' +
+          response.status
+        );
+      }
+
+      await refreshStates();
+      refreshLightView(roomKey);
+
+    } catch (error) {
+      alert(
+        'Could not change color temperature: ' +
+        error.message
+      );
+    }
+  };
+
+
+  window.setLightColorPreset =
+    async function(
+      entityId,
+      hue,
+      saturation,
+      roomKey = ''
+    ) {
+
+    try {
+      const response = await fetch(
+        base + '/api/service',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+          body: JSON.stringify({
+            domain: 'light',
+            service: 'turn_on',
+            entity_id: entityId,
+            hs_color: [
+              Number(hue),
+              Number(saturation)
+            ]
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Color failed: ' +
+          response.status
+        );
+      }
+
+      await refreshStates();
+      refreshLightView(roomKey);
+
+    } catch (error) {
+      alert(
+        'Could not change color: ' +
         error.message
       );
     }
@@ -2078,14 +2198,133 @@ fetch(base + '/api/bootstrap')
       return an.localeCompare(bn);
     });
 
-    function renderLightControl(entity, prominent = false) {
+    function lightName(entity) {
       const state = stateMap.get(entity.entity_id);
 
-      const name =
+      return (
         entity.name ||
         entity.original_name ||
         state?.attributes?.friendly_name ||
-        entity.entity_id;
+        entity.entity_id
+      );
+    }
+
+    function isBedroomPrimaryLamp(entity) {
+      const name = lightName(entity).toLowerCase();
+
+      return (
+        name.includes("dwayne's lamp") ||
+        name.includes("dwaynes lamp") ||
+        name.includes("marlana's lamp") ||
+        name.includes("marlanas lamp")
+      );
+    }
+
+    function supportedColorModes(state) {
+      return state?.attributes?.supported_color_modes || [];
+    }
+
+    function supportsBrightness(state) {
+      return (
+        supportedColorModes(state).some(mode =>
+          mode !== 'onoff'
+        ) ||
+        typeof state?.attributes?.brightness === 'number'
+      );
+    }
+
+    function supportsColorTemperature(state) {
+      return supportedColorModes(state).includes('color_temp');
+    }
+
+    function supportsColor(state) {
+      return supportedColorModes(state).some(mode =>
+        [
+          'hs',
+          'rgb',
+          'rgbw',
+          'rgbww',
+          'xy'
+        ].includes(mode)
+      );
+    }
+
+    function lightColorControls(entity, state, roomKey) {
+      const attrs = state?.attributes || {};
+      const controls = [];
+
+      if (supportsColorTemperature(state)) {
+        const minKelvin =
+          attrs.min_color_temp_kelvin || 2200;
+
+        const maxKelvin =
+          attrs.max_color_temp_kelvin || 6500;
+
+        const currentKelvin =
+          attrs.color_temp_kelvin ||
+          Math.round((minKelvin + maxKelvin) / 2);
+
+        controls.push(`
+          <div class="control-label">Warm / cool</div>
+          <input
+            type="range"
+            min="${minKelvin}"
+            max="${maxKelvin}"
+            value="${currentKelvin}"
+            onchange="setLightColorTemperature(
+              '${entity.entity_id}',
+              this.value,
+              '${roomKey}'
+            )"
+            style="width:100%"
+          >
+        `);
+      }
+
+      if (supportsColor(state)) {
+        const presets = [
+          ['Warm', '#ffc46b', 38, 74],
+          ['Calm', '#7cc7ff', 205, 52],
+          ['Focus', '#ffffff', 45, 8],
+          ['Night', '#8f6bff', 255, 54],
+          ['Red', '#ff6b6b', 0, 72]
+        ];
+
+        controls.push(`
+          <div class="control-label">Color</div>
+          <div class="swatch-row">
+            ${presets.map(([label, color, hue, saturation]) => `
+              <button
+                class="swatch"
+                aria-label="${label}"
+                title="${label}"
+                onclick="setLightColorPreset(
+                  '${entity.entity_id}',
+                  ${hue},
+                  ${saturation},
+                  '${roomKey}'
+                )"
+                style="background:${color}"
+              ></button>
+            `).join('')}
+          </div>
+        `);
+      }
+
+      return controls.join('');
+    }
+
+    function renderLightControl(entity, options = {}) {
+      const prominent = options.prominent === true;
+      const label = options.label || (
+        prominent
+          ? 'Room control'
+          : 'Individual light'
+      );
+      const roomKey = options.roomKey || '';
+      const state = stateMap.get(entity.entity_id);
+
+      const name = lightName(entity);
 
       const brightness =
         state?.attributes?.brightness;
@@ -2102,11 +2341,8 @@ fetch(base + '/api/bootstrap')
             ? 'Off'
             : state?.state || '—';
 
-      const supportsBrightness =
-        state?.attributes?.supported_color_modes?.some(
-          mode => mode !== 'onoff'
-        ) ||
-        typeof brightness === 'number';
+      const colorControls =
+        lightColorControls(entity, state, roomKey);
 
       return `
         <div style="
@@ -2137,11 +2373,11 @@ fetch(base + '/api/bootstrap')
                   letter-spacing:.11em;
                   text-transform:uppercase;
                 ">
-                  Room control
+                  ${label}
                 </div>
               ` : `
                 <div class="key" style="margin-bottom:3px">
-                  Individual light
+                  ${label}
                 </div>
               `}
               <strong style="${prominent ? 'font-size:17px;' : 'font-size:14px;'}">
@@ -2160,7 +2396,7 @@ fetch(base + '/api/bootstrap')
               </span>
 
               <button
-                onclick="toggleLight('${entity.entity_id}')"
+                onclick="toggleLight('${entity.entity_id}', '${roomKey}')"
                 style="
                   background:${prominent ? 'var(--text)' : 'var(--card2)'};
                   color:${prominent ? 'var(--bg)' : 'var(--text)'};
@@ -2176,7 +2412,7 @@ fetch(base + '/api/bootstrap')
             </span>
           </div>
 
-          ${supportsBrightness ? `
+          ${supportsBrightness(state) ? `
             <div style="margin-top:10px">
               <input
                 type="range"
@@ -2185,12 +2421,15 @@ fetch(base + '/api/bootstrap')
                 value="${brightnessPct ?? 100}"
                 onchange="setLightBrightness(
                   '${entity.entity_id}',
-                  this.value
+                  this.value,
+                  '${roomKey}'
                 )"
                 style="width:100%"
               >
             </div>
           ` : ''}
+
+          ${colorControls}
         </div>
       `;
     }
@@ -2203,19 +2442,125 @@ fetch(base + '/api/bootstrap')
         !isLightGroup(entity)
       );
 
+    const primaryBedroomLights =
+      key === 'bedroom'
+        ? individualLights.filter(isBedroomPrimaryLamp)
+        : [];
+
+    const secondaryBedroomLights =
+      key === 'bedroom'
+        ? individualLights.filter(entity =>
+            !isBedroomPrimaryLamp(entity)
+          )
+        : [];
+
     const groupRows =
       groupLights
         .map(entity =>
-          renderLightControl(entity, true)
+          renderLightControl(entity, {
+            prominent: key !== 'bedroom',
+            label:
+              key === 'bedroom'
+                ? 'Secondary group action'
+                : 'Room control',
+            roomKey: key
+          })
+        )
+        .join('');
+
+    const primaryBedroomRows =
+      primaryBedroomLights
+        .map(entity =>
+          renderLightControl(entity, {
+            prominent: true,
+            label: 'Primary lamp',
+            roomKey: key
+          })
+        )
+        .join('');
+
+    const secondaryBedroomRows =
+      secondaryBedroomLights
+        .map(entity =>
+          renderLightControl(entity, {
+            prominent: false,
+            label: 'Other light',
+            roomKey: key
+          })
         )
         .join('');
 
     const individualRows =
       individualLights
         .map(entity =>
-          renderLightControl(entity, false)
+          renderLightControl(entity, {
+            prominent: false,
+            label: 'Individual light',
+            roomKey: key
+          })
         )
         .join('');
+
+    const roomLightRows =
+      key === 'bedroom'
+        ? `
+          ${primaryBedroomRows ? `
+            <div class="key" style="margin:0 0 8px 2px">
+              Primary lamps
+            </div>
+            <div style="margin-bottom:12px">
+              ${primaryBedroomRows}
+            </div>
+          ` : ''}
+
+          ${groupRows ? `
+            <div class="key" style="margin:0 0 8px 2px">
+              Group action
+            </div>
+            <div class="area-list" style="margin-bottom:20px">
+              ${groupRows}
+            </div>
+          ` : ''}
+
+          ${secondaryBedroomRows ? `
+            <details style="margin-bottom:20px">
+              <summary class="key" style="
+                min-height:44px;
+                display:flex;
+                align-items:center;
+                cursor:pointer;
+              ">
+                Other individual lights
+              </summary>
+              <div class="area-list">
+                ${secondaryBedroomRows}
+              </div>
+            </details>
+          ` : ''}
+        `
+        : `
+          ${groupRows ? `
+            <div style="margin-bottom:12px">
+              ${groupRows}
+            </div>
+          ` : ''}
+
+          ${individualRows ? `
+            <details style="margin-bottom:20px">
+              <summary class="key" style="
+                min-height:44px;
+                display:flex;
+                align-items:center;
+                cursor:pointer;
+              ">
+                Individual lights
+              </summary>
+              <div class="area-list">
+                ${individualRows}
+              </div>
+            </details>
+          ` : ''}
+        `;
 
     const mediaEntities = nonLights.filter(entity =>
       entity.entity_id.startsWith('media_player.')
@@ -2677,23 +3022,7 @@ fetch(base + '/api/bootstrap')
           Room lights
         </div>
 
-        ${groupRows ? `
-          <div style="margin-bottom:12px">
-            ${groupRows}
-          </div>
-        ` : ''}
-
-        ${individualRows ? `
-          <div class="key"
-               style="margin:0 0 6px 2px">
-            Individual lights
-          </div>
-
-          <div class="area-list"
-               style="margin-bottom:20px">
-            ${individualRows}
-          </div>
-        ` : ''}
+        ${roomLightRows}
       ` : ''}
 
       ${mediaRows ? `

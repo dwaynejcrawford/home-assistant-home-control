@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.8
+
+- Refine room lighting hierarchy with Main Bedroom primary lamp handling.
+- Collapse individual room lights by default outside Main Bedroom.
+- Add capability-driven warm/cool and color preset controls for supported lights.
+
 ## 1.0.7
 
 - Move technical Home Assistant connectivity details below the primary home UI.

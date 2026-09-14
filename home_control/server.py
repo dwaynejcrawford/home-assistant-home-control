@@ -259,6 +259,56 @@ async def call_service(request):
 
             service_data["brightness_pct"] = brightness_pct
 
+        color_temp_kelvin = data.get("color_temp_kelvin")
+
+        if (
+            domain == "light"
+            and service == "turn_on"
+            and color_temp_kelvin is not None
+        ):
+            try:
+                color_temp_kelvin = int(color_temp_kelvin)
+            except (TypeError, ValueError):
+                return web.json_response(
+                    {"error": "Invalid color temperature"},
+                    status=400,
+                )
+
+            service_data["color_temp_kelvin"] = max(
+                1500,
+                min(9000, color_temp_kelvin)
+            )
+
+        hs_color = data.get("hs_color")
+
+        if (
+            domain == "light"
+            and service == "turn_on"
+            and hs_color is not None
+        ):
+            if (
+                not isinstance(hs_color, list)
+                or len(hs_color) != 2
+            ):
+                return web.json_response(
+                    {"error": "Invalid color"},
+                    status=400,
+                )
+
+            try:
+                hue = float(hs_color[0])
+                saturation = float(hs_color[1])
+            except (TypeError, ValueError):
+                return web.json_response(
+                    {"error": "Invalid color"},
+                    status=400,
+                )
+
+            service_data["hs_color"] = [
+                max(0.0, min(360.0, hue)),
+                max(0.0, min(100.0, saturation)),
+            ]
+
         if domain == "media_player":
             if service == "volume_mute":
                 service_data["is_volume_muted"] = bool(
