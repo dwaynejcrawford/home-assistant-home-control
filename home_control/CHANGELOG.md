@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.9
+
+- Replace raw room audit blocks with cleaner household-facing room summaries.
+- Clarify Main Bedroom room temperature versus the whole-home thermostat.
+
 ## 1.0.8
 
 - Refine room lighting hierarchy with Main Bedroom primary lamp handling.

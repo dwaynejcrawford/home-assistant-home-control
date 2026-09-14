@@ -252,7 +252,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.8</div>
+<div class="key">Home Control • 1.0.9</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -801,6 +801,15 @@ fetch(base + '/api/bootstrap')
 
     const thermostatAttrs =
       thermostatState?.attributes || {};
+
+    const thermostatUnit =
+      thermostatAttrs.temperature_unit || '°';
+
+    const thermostatPreset =
+      thermostatAttrs.preset_mode;
+
+    const thermostatFan =
+      thermostatAttrs.fan_mode;
 
     const bedroomTemperature =
       stateMap.get(
@@ -2771,51 +2780,6 @@ fetch(base + '/api/bootstrap')
       stateMap.get(entity.entity_id)?.state === 'on'
     ).length;
 
-    const temperatureAudit = all
-      .map(entity => {
-        const state = stateMap.get(entity.entity_id);
-        const name =
-          entity.name ||
-          entity.original_name ||
-          state?.attributes?.friendly_name ||
-          entity.entity_id;
-
-        const deviceClass =
-          state?.attributes?.device_class || '';
-
-        return {
-          entity_id: entity.entity_id,
-          name,
-          state: state?.state,
-          unit:
-            state?.attributes?.unit_of_measurement,
-          device_class: deviceClass
-        };
-      })
-      .filter(item => {
-        const text = (
-          item.entity_id + ' ' + item.name
-        ).toLowerCase();
-
-        return (
-          item.device_class === 'temperature' ||
-          text.includes('temperature') ||
-          text.includes(' temp') ||
-          text.includes('thermostat') ||
-          text.includes('hvac')
-        );
-      });
-
-    const auditDomains = {};
-
-    all.forEach(entity => {
-      const domain =
-        entity.entity_id.split('.')[0];
-
-      auditDomains[domain] =
-        (auditDomains[domain] || 0) + 1;
-    });
-
     const unavailableCount =
       all.filter(entity => {
         const state =
@@ -2835,6 +2799,28 @@ fetch(base + '/api/bootstrap')
       )
       .filter(Boolean);
 
+    const activeCount =
+      all.filter(entity => {
+        const state =
+          stateMap.get(entity.entity_id);
+
+        return state && [
+          'on',
+          'open',
+          'opening',
+          'playing',
+          'home',
+          'unlocked'
+        ].includes(state.state);
+      }).length;
+
+    const visibleAreaSummary =
+      key === 'bedroom'
+        ? 'Main Bedroom includes 2 mapped Home Assistant areas.'
+        : areaNames.length
+          ? areaNames.join(' + ')
+          : 'No mapped Home Assistant area.';
+
 
     document.getElementById(
       'roomDetailTitle'
@@ -2843,62 +2829,13 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'roomDetailList'
     ).innerHTML = `
-      ${temperatureAudit.length ? `
-        <div class="banner" style="margin:0 0 12px 0">
-          <strong style="display:none">Temperature audit</strong>
-
-          <div style="
-            margin-top:8px;
-            display:flex;
-            flex-direction:column;
-            gap:6px;
-          ">
-            ${temperatureAudit.map(item => `
-              <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:12px;
-                font-size:11px;
-              ">
-                <span>
-                  ${item.name}<br>
-                  <span class="muted">
-                    ${item.entity_id}
-                  </span>
-                </span>
-
-                <span style="text-align:right">
-                  ${item.state ?? '—'}
-                  ${item.unit ?? ''}
-                </span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
       <div class="banner" style="margin:0 0 12px 0">
-        <strong>${areaNames.join(' + ')}</strong><br>
+        <strong>${title}</strong><br>
         <span class="muted" style="font-size:11px">
-          ${all.length} entities •
-          ${unavailableCount} unavailable
+          ${visibleAreaSummary}
+          ${activeCount ? ` ${activeCount} active.` : ''}
+          ${unavailableCount ? ` ${unavailableCount} unavailable.` : ''}
         </span>
-
-        <div style="
-          margin-top:8px;
-          display:flex;
-          gap:5px;
-          flex-wrap:wrap;
-        ">
-          ${Object.entries(auditDomains)
-            .sort((a,b) => b[1] - a[1])
-            .map(([domain,count]) => `
-              <span class="pill">
-                ${domain}: ${count}
-              </span>
-            `)
-            .join('')}
-        </div>
       </div>
 
       ${key === 'bedroom' ? `
@@ -2921,7 +2858,7 @@ fetch(base + '/api/bootstrap')
               <div style="
                 font-size:34px;
                 font-weight:800;
-                letter-spacing:-.04em;
+                letter-spacing:0;
                 margin-top:3px;
               ">
                 ${bedroomTempValue ?? '—'}${bedroomTempUnit}
@@ -2934,7 +2871,7 @@ fetch(base + '/api/bootstrap')
             </div>
 
             <div style="text-align:right">
-              <div class="key">Thermostat</div>
+              <div class="key">Whole-home thermostat</div>
 
               <div style="
                 font-size:17px;
@@ -2952,6 +2889,8 @@ fetch(base + '/api/bootstrap')
                      text-transform:capitalize;
                    ">
                 ${thermostatAction}
+                ${thermostatPreset ? ` • ${thermostatPreset}` : ''}
+                ${thermostatFan ? ` • Fan ${thermostatFan}` : ''}
               </div>
             </div>
           </div>
@@ -2969,7 +2908,7 @@ fetch(base + '/api/bootstrap')
             ">
               <div class="key">House temp</div>
               <strong style="display:block;margin-top:4px">
-                ${thermostatCurrent ?? '—'}°
+                ${thermostatCurrent ?? '—'}${thermostatUnit}
               </strong>
             </div>
 
@@ -2982,12 +2921,12 @@ fetch(base + '/api/bootstrap')
               <strong style="display:block;margin-top:4px">
                 ${
                   thermostatTarget !== undefined
-                    ? thermostatTarget + '°'
+                    ? thermostatTarget + thermostatUnit
                     : (
                         thermostatLow !== undefined &&
                         thermostatHigh !== undefined
                       )
-                      ? thermostatLow + '–' + thermostatHigh + '°'
+                      ? thermostatLow + '-' + thermostatHigh + thermostatUnit
                       : '—'
                 }
               </strong>
