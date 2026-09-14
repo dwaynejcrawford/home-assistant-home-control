@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.7.6</div>
+<div class="key">Home Control • 0.8.0</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -256,24 +256,15 @@ Loading cameras…
 
 <div id="cameraDetailList"></div>
 
-<div style="margin-top:18px">
-  <button
-    onclick="loadCameraDiagnostics()"
-    style="
-      background:var(--card2);
-      color:var(--text);
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:10px 14px;
-      font:inherit;
-      font-weight:700;
-    ">
-    Camera Diagnostics
-  </button>
+<div style="margin-top:24px">
+  <div class="key" style="margin:0 0 8px 2px">
+    Recent Activity
+  </div>
 
-  <div
-    id="cameraDiagnostics"
-    style="display:none;margin-top:14px">
+  <div id="cameraActivityList">
+    <div class="banner">
+      Loading camera activity…
+    </div>
   </div>
 </div>
 
@@ -673,13 +664,16 @@ fetch(base + '/api/bootstrap')
 
 
 
-  window.loadCameraDiagnostics = async function() {
+  async function loadCameraActivity() {
     const panel =
-      document.getElementById('cameraDiagnostics');
+      document.getElementById('cameraActivityList');
 
-    panel.style.display = 'block';
+    if (!panel) {
+      return;
+    }
+
     panel.innerHTML =
-      '<div class="banner">Loading Ring signals…</div>';
+      '<div class="banner">Loading camera activity…</div>';
 
     try {
       const response = await fetch(
@@ -688,61 +682,196 @@ fetch(base + '/api/bootstrap')
 
       if (!response.ok) {
         throw Error(
-          'Diagnostics failed: ' + response.status
+          'Activity request failed: ' +
+          response.status
         );
       }
 
       const data = await response.json();
       const signals = data.signals || [];
 
-      panel.innerHTML = `
-        <div class="banner"
-             style="margin-bottom:12px">
-          ${signals.length} Ring-related entities
-        </div>
+      const groups = new Map();
 
-        <div class="area-list">
-          ${signals.map(item => `
-            <div class="row">
-              <span>
-                <strong>
-                  ${item.attributes?.friendly_name ||
-                    item.entity_id}
-                </strong><br>
+      function cameraKey(item) {
+        return (
+          item.device_name ||
+          item.area ||
+          item.entity_id
+        );
+      }
 
-                <span class="muted"
-                      style="font-size:11px">
-                  ${item.domain} •
-                  ${item.area || 'Unassigned'}<br>
-                  ${item.entity_id}
-                </span>
-              </span>
+      signals.forEach(item => {
+        const key = cameraKey(item);
 
-              <span style="text-align:right">
-                <b>${item.state ?? '—'}</b><br>
+        if (!groups.has(key)) {
+          groups.set(key, {
+            name:
+              item.device_name ||
+              item.area ||
+              'Camera',
+            area:
+              item.area ||
+              'Unassigned',
+            lastActivity: null,
+            motion: false,
+            ding: false,
+            recordingEntity: null
+          });
+        }
 
-                <span class="muted"
-                      style="font-size:10px">
-                  ${item.last_changed
-                    ? new Date(
-                        item.last_changed
-                      ).toLocaleString()
-                    : '—'}
-                </span>
-              </span>
-            </div>
-          `).join('')}
-        </div>
-      `;
+        const group = groups.get(key);
+        const id = item.entity_id || '';
+
+        if (
+          id.includes('_last_activity') &&
+          item.state
+        ) {
+          group.lastActivity = item.state;
+        }
+
+        if (
+          item.domain === 'event' &&
+          id.includes('_motion')
+        ) {
+          group.motion = true;
+        }
+
+        if (
+          item.domain === 'event' &&
+          id.includes('_ding')
+        ) {
+          group.ding = true;
+        }
+
+        if (
+          item.domain === 'camera' &&
+          id.includes('_last_recording')
+        ) {
+          group.recordingEntity = id;
+        }
+      });
+
+      const activity = [...groups.values()]
+        .filter(item =>
+          item.lastActivity ||
+          item.motion ||
+          item.ding ||
+          item.recordingEntity
+        )
+        .sort((a, b) => {
+          const at = a.lastActivity
+            ? new Date(a.lastActivity).getTime()
+            : 0;
+
+          const bt = b.lastActivity
+            ? new Date(b.lastActivity).getTime()
+            : 0;
+
+          return bt - at;
+        });
+
+      panel.innerHTML =
+        activity.length
+        ? activity.map(item => {
+            const types = [];
+
+            if (item.motion) {
+              types.push('Motion');
+            }
+
+            if (item.ding) {
+              types.push('Doorbell');
+            }
+
+            const when = item.lastActivity
+              ? new Date(
+                  item.lastActivity
+                ).toLocaleString()
+              : 'No recent timestamp';
+
+            return `
+              <div class="card"
+                   style="margin-bottom:12px">
+
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  gap:14px;
+                  align-items:flex-start;
+                ">
+                  <span>
+                    <strong>${item.name}</strong><br>
+
+                    <span class="muted"
+                          style="font-size:12px">
+                      ${item.area}
+                    </span>
+                  </span>
+
+                  <span class="muted"
+                        style="
+                          font-size:11px;
+                          text-align:right;
+                        ">
+                    ${when}
+                  </span>
+                </div>
+
+                <div style="
+                  margin-top:10px;
+                  display:flex;
+                  gap:6px;
+                  flex-wrap:wrap;
+                ">
+                  ${types.map(type => `
+                    <span class="pill">${type}</span>
+                  `).join('')}
+                </div>
+
+                ${item.recordingEntity ? `
+                  <div style="margin-top:12px">
+                    <button
+                      onclick="openLastRecording(
+                        '${item.recordingEntity}'
+                      )"
+                      style="
+                        background:var(--card2);
+                        color:var(--text);
+                        border:1px solid var(--line);
+                        border-radius:12px;
+                        padding:8px 11px;
+                        font:inherit;
+                        font-size:12px;
+                        font-weight:700;
+                      ">
+                      View last recording
+                    </button>
+                  </div>
+                ` : ''}
+
+              </div>
+            `;
+          }).join('')
+        : '<div class="banner">No Ring activity entities found.</div>';
 
     } catch (error) {
       panel.innerHTML = `
         <div class="banner">
-          Diagnostics error:
-          ${error.message}
+          Activity error: ${error.message}
         </div>
       `;
     }
+  };
+
+
+  window.openLastRecording = function(entityId) {
+    const url =
+      base + '/api/camera/' + entityId;
+
+    window.open(
+      url,
+      '_self'
+    );
   };
 
 
@@ -873,6 +1002,8 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'cameraDetail'
     ).style.display = 'block';
+
+    loadCameraActivity();
 
     document.getElementById(
       'lightingDetail'
