@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.8.7</div>
+<div class="key">Home Control • 0.8.8</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -285,34 +285,8 @@ Loading cameras…
       overflow-wrap:anywhere;
       margin-top:10px;
       font-size:11px;
-    ">
-  </pre>
-</div>
-
-<div style="margin:0 0 16px 0">
-  <button
-    onclick="loadRingMqttDiagnostics()"
-    style="
-      background:var(--card2);
-      color:var(--text);
-      border:1px solid var(--line);
-      border-radius:12px;
-      padding:8px 11px;
-      font:inherit;
-      font-size:12px;
-      font-weight:700;
-    ">
-    Ring-MQTT Diagnostics
-  </button>
-
-  <pre
-    id="ringMqttDiagnostics"
-    style="
-      display:none;
-      white-space:pre-wrap;
-      overflow-wrap:anywhere;
-      margin-top:10px;
-      font-size:11px;
+      max-height:500px;
+      overflow-y:auto;
     ">
   </pre>
 </div>
@@ -722,47 +696,6 @@ fetch(base + '/api/bootstrap')
 
 
 
-  window.loadRingMqttDiagnostics =
-    async function() {
-
-    const panel =
-      document.getElementById(
-        'ringMqttDiagnostics'
-      );
-
-    panel.style.display = 'block';
-    panel.textContent = 'Loading…';
-
-    try {
-      const response = await fetch(
-        base +
-        '/api/ring-mqtt-diagnostics'
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw Error(
-          data.message ||
-          data.error ||
-          'Diagnostics failed'
-        );
-      }
-
-      panel.textContent =
-        JSON.stringify(
-          data,
-          null,
-          2
-        );
-
-    } catch (error) {
-      panel.textContent =
-        'Error: ' + error.message;
-    }
-  };
-
-
 
   window.loadRingMqttDiagnostics =
     async function() {
@@ -969,26 +902,7 @@ fetch(base + '/api/bootstrap')
                   `).join('')}
                 </div>
 
-                ${item.recordingEntity ? `
-                  <div style="margin-top:12px">
-                    <button
-                      onclick="openLastRecording(
-                        '${item.recordingEntity}'
-                      )"
-                      style="
-                        background:var(--card2);
-                        color:var(--text);
-                        border:1px solid var(--line);
-                        border-radius:12px;
-                        padding:8px 11px;
-                        font:inherit;
-                        font-size:12px;
-                        font-weight:700;
-                      ">
-                      Recording available
-                    </button>
-                  </div>
-                ` : ''}
+
 
               </div>
             `;
@@ -1002,15 +916,6 @@ fetch(base + '/api/bootstrap')
         </div>
       `;
     }
-  };
-
-
-  window.openLastRecording = function(entityId) {
-    alert(
-      'Recording detected: ' +
-      entityId +
-      '\n\nPlayback support is being added next.'
-    );
   };
 
 
