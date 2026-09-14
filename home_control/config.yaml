@@ -1,5 +1,5 @@
 name: "Home Control"
-version: "0.9.2"
+version: "0.9.3"
 slug: "home_control"
 description: "Phone-first custom Home Assistant control interface"
 url: "https://github.com/dwaynejcrawford/home-assistant-home-control"

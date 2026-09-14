@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.9.2</div>
+<div class="key">Home Control • 0.9.3</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -748,7 +748,7 @@ fetch(base + '/api/bootstrap')
       'camera.main_floor_live_view':
         'button.main_floor_take_snapshot',
       'camera.garage_live_view':
-        'button.garage_take_snapshot',
+        'button.garage_camera_take_snapshot',
     };
 
     return map[entityId] || null;
@@ -765,7 +765,7 @@ fetch(base + '/api/bootstrap')
       'camera.main_floor_live_view':
         'camera.main_floor_snapshot',
       'camera.garage_live_view':
-        'camera.garage_snapshot',
+        'camera.garage_camera_snapshot',
     };
 
     return map[entityId] || null;
