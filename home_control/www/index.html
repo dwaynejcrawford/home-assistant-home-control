@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.9.1</div>
+<div class="key">Home Control • 0.9.2</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -755,6 +755,23 @@ fetch(base + '/api/bootstrap')
   }
 
 
+
+  function snapshotCameraFor(entityId) {
+    const map = {
+      'camera.front_door_live_view':
+        'camera.front_door_snapshot',
+      'camera.side_porch_live_view':
+        'camera.side_porch_snapshot',
+      'camera.main_floor_live_view':
+        'camera.main_floor_snapshot',
+      'camera.garage_live_view':
+        'camera.garage_snapshot',
+    };
+
+    return map[entityId] || null;
+  }
+
+
   window.refreshCameraSnapshot =
     async function(cameraEntityId) {
 
@@ -790,25 +807,23 @@ fetch(base + '/api/bootstrap')
       }
 
       await new Promise(resolve =>
-        setTimeout(resolve, 2000)
+        setTimeout(resolve, 3000)
       );
+
+      const snapshotEntity =
+        snapshotCameraFor(cameraEntityId);
 
       const img = document.querySelector(
         `[data-camera-entity="${cameraEntityId}"]`
       );
 
-      if (img) {
-        const url = new URL(
-          img.src,
-          window.location.href
-        );
-
-        url.searchParams.set(
-          '_ts',
-          Date.now()
-        );
-
-        img.src = url.toString();
+      if (img && snapshotEntity) {
+        img.src =
+          base +
+          '/api/camera/' +
+          snapshotEntity +
+          '?_ts=' +
+          Date.now();
       }
 
     } catch (error) {
