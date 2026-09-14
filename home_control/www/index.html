@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.7.2</div>
+<div class="key">Home Control • 0.7.3</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -652,7 +652,7 @@ fetch(base + '/api/bootstrap')
 
 
   window.openCameras = function() {
-    const cameras = getVisibleCameraEntities()
+    const cameras = getVisibleCameraEntities(enabledEntities)
       .map(entity => {
         const state =
           stateMap.get(entity.entity_id);
