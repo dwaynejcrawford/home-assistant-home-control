@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.9.4</div>
+<div class="key">Home Control • 1.0.0</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -1946,6 +1946,36 @@ fetch(base + '/api/bootstrap')
       stateMap.get(entity.entity_id)?.state === 'on'
     ).length;
 
+    const auditDomains = {};
+
+    all.forEach(entity => {
+      const domain =
+        entity.entity_id.split('.')[0];
+
+      auditDomains[domain] =
+        (auditDomains[domain] || 0) + 1;
+    });
+
+    const unavailableCount =
+      all.filter(entity => {
+        const state =
+          stateMap.get(entity.entity_id);
+
+        return (
+          !state ||
+          state.state === 'unavailable'
+        );
+      }).length;
+
+    const areaNames =
+      ids.map(areaId =>
+        areas.find(area =>
+          area.area_id === areaId
+        )?.name
+      )
+      .filter(Boolean);
+
+
     document.getElementById(
       'roomDetailTitle'
     ).textContent = title;
@@ -1953,6 +1983,30 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'roomDetailList'
     ).innerHTML = `
+      <div class="banner" style="margin:0 0 12px 0">
+        <strong>${areaNames.join(' + ')}</strong><br>
+        <span class="muted" style="font-size:11px">
+          ${all.length} entities •
+          ${unavailableCount} unavailable
+        </span>
+
+        <div style="
+          margin-top:8px;
+          display:flex;
+          gap:5px;
+          flex-wrap:wrap;
+        ">
+          ${Object.entries(auditDomains)
+            .sort((a,b) => b[1] - a[1])
+            .map(([domain,count]) => `
+              <span class="pill">
+                ${domain}: ${count}
+              </span>
+            `)
+            .join('')}
+        </div>
+      </div>
+
       <div class="banner" style="margin:0 0 16px 0">
         ${roomLights.length} lights • ${onCount} on
         ${roomLights.length ? `
