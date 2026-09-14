@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.7.4</div>
+<div class="key">Home Control • 0.7.5</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -255,6 +255,22 @@ Loading cameras…
 </div>
 
 <div id="cameraDetailList"></div>
+
+<div style="margin-top:18px">
+  <button
+    onclick="window.open(base + '/api/camera-signals', '_blank')"
+    style="
+      background:var(--card2);
+      color:var(--text);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 14px;
+      font:inherit;
+      font-weight:700;
+    ">
+    Camera Diagnostics
+  </button>
+</div>
 
 <div style="margin-top:14px">
 <button onclick="closeCameras()"
