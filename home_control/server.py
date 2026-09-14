@@ -584,61 +584,102 @@ async def ring_mqtt_diagnostics(request):
                 "/states",
             )
 
-        keywords = (
+        camera_terms = (
+            "front_door",
+            "front door",
+            "side_porch",
+            "side porch",
+            "garage",
+            "main_floor",
+            "main floor",
+        )
+
+        ring_terms = (
             "ring",
-            "record",
-            "recording",
-            "video",
-            "event",
-            "motion",
-            "ding",
+            "mqtt",
         )
 
         results = []
 
         for state in states:
-            entity_id = state.get("entity_id", "")
-            attrs = state.get("attributes", {})
-
-            friendly_name = str(
-                attrs.get("friendly_name", "")
+            entity_id = state.get(
+                "entity_id",
+                ""
             )
 
-            search_text = (
-                entity_id + " " + friendly_name
+            attrs = state.get(
+                "attributes",
+                {}
+            )
+
+            friendly_name = str(
+                attrs.get(
+                    "friendly_name",
+                    ""
+                )
+            )
+
+            text = (
+                entity_id +
+                " " +
+                friendly_name
             ).lower()
 
-            if not any(
-                word in search_text
-                for word in keywords
+            matches_camera = any(
+                term in text
+                for term in camera_terms
+            )
+
+            matches_ring = any(
+                term in text
+                for term in ring_terms
+            )
+
+            if not matches_camera:
+                continue
+
+            # Keep camera-related entities even when
+            # "ring" or "mqtt" is not in the entity name,
+            # because Ring-MQTT entities often use only
+            # the device/location name.
+            domain = (
+                entity_id.split(".", 1)[0]
+                if "." in entity_id
+                else ""
+            )
+
+            interesting_domains = {
+                "camera",
+                "sensor",
+                "binary_sensor",
+                "event",
+                "switch",
+                "button",
+                "select",
+                "number",
+                "text",
+            }
+
+            if (
+                not matches_ring
+                and domain not in interesting_domains
             ):
                 continue
 
-            useful = {}
-
-            for key, value in attrs.items():
-                key_lower = key.lower()
-
-                if any(
-                    term in key_lower
-                    for term in (
-                        "url",
-                        "record",
-                        "video",
-                        "event",
-                        "motion",
-                        "ding",
-                        "media",
-                    )
-                ):
-                    useful[key] = value
-
             results.append({
                 "entity_id": entity_id,
+                "domain": domain,
                 "state": state.get("state"),
                 "friendly_name": friendly_name,
-                "attributes": useful,
+                "attributes": attrs,
             })
+
+        results.sort(
+            key=lambda item: (
+                item.get("friendly_name") or "",
+                item.get("entity_id") or "",
+            )
+        )
 
         return web.json_response({
             "count": len(results),
