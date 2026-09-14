@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.0</div>
+<div class="key">Home Control • 1.0.1</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -1946,6 +1946,41 @@ fetch(base + '/api/bootstrap')
       stateMap.get(entity.entity_id)?.state === 'on'
     ).length;
 
+    const temperatureAudit = all
+      .map(entity => {
+        const state = stateMap.get(entity.entity_id);
+        const name =
+          entity.name ||
+          entity.original_name ||
+          state?.attributes?.friendly_name ||
+          entity.entity_id;
+
+        const deviceClass =
+          state?.attributes?.device_class || '';
+
+        return {
+          entity_id: entity.entity_id,
+          name,
+          state: state?.state,
+          unit:
+            state?.attributes?.unit_of_measurement,
+          device_class: deviceClass
+        };
+      })
+      .filter(item => {
+        const text = (
+          item.entity_id + ' ' + item.name
+        ).toLowerCase();
+
+        return (
+          item.device_class === 'temperature' ||
+          text.includes('temperature') ||
+          text.includes(' temp') ||
+          text.includes('thermostat') ||
+          text.includes('hvac')
+        );
+      });
+
     const auditDomains = {};
 
     all.forEach(entity => {
@@ -1983,6 +2018,40 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'roomDetailList'
     ).innerHTML = `
+      ${temperatureAudit.length ? `
+        <div class="banner" style="margin:0 0 12px 0">
+          <strong>Temperature audit</strong>
+
+          <div style="
+            margin-top:8px;
+            display:flex;
+            flex-direction:column;
+            gap:6px;
+          ">
+            ${temperatureAudit.map(item => `
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                gap:12px;
+                font-size:11px;
+              ">
+                <span>
+                  ${item.name}<br>
+                  <span class="muted">
+                    ${item.entity_id}
+                  </span>
+                </span>
+
+                <span style="text-align:right">
+                  ${item.state ?? '—'}
+                  ${item.unit ?? ''}
+                </span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+
       <div class="banner" style="margin:0 0 12px 0">
         <strong>${areaNames.join(' + ')}</strong><br>
         <span class="muted" style="font-size:11px">
