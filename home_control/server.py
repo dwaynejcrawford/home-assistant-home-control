@@ -197,6 +197,9 @@ async def call_service(request):
                 "volume_mute",
                 "volume_set",
             },
+            "button": {
+                "press",
+            },
         }
 
         if domain not in allowed_services:
@@ -216,6 +219,20 @@ async def call_service(request):
                 {"error": "Invalid entity"},
                 status=400,
             )
+
+        if domain == "button":
+            allowed_snapshot_buttons = {
+                "button.front_door_take_snapshot",
+                "button.side_porch_take_snapshot",
+                "button.main_floor_take_snapshot",
+                "button.garage_take_snapshot",
+            }
+
+            if entity_id not in allowed_snapshot_buttons:
+                return web.json_response(
+                    {"error": "Unsupported button"},
+                    status=403,
+                )
 
         service_data = {
             "entity_id": entity_id,

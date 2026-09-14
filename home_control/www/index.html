@@ -738,6 +738,88 @@ fetch(base + '/api/bootstrap')
   };
 
 
+
+  function snapshotButtonFor(entityId) {
+    const map = {
+      'camera.front_door_live_view':
+        'button.front_door_take_snapshot',
+      'camera.side_porch_live_view':
+        'button.side_porch_take_snapshot',
+      'camera.main_floor_live_view':
+        'button.main_floor_take_snapshot',
+      'camera.garage_live_view':
+        'button.garage_take_snapshot',
+    };
+
+    return map[entityId] || null;
+  }
+
+
+  window.refreshCameraSnapshot =
+    async function(cameraEntityId) {
+
+    const buttonEntity =
+      snapshotButtonFor(cameraEntityId);
+
+    if (!buttonEntity) {
+      alert('No snapshot button mapped for this camera.');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        base + '/api/service',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            domain: 'button',
+            service: 'press',
+            entity_id: buttonEntity
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Snapshot request failed: ' +
+          response.status
+        );
+      }
+
+      await new Promise(resolve =>
+        setTimeout(resolve, 2000)
+      );
+
+      const img = document.querySelector(
+        `[data-camera-entity="${cameraEntityId}"]`
+      );
+
+      if (img) {
+        const url = new URL(
+          img.src,
+          window.location.href
+        );
+
+        url.searchParams.set(
+          '_ts',
+          Date.now()
+        );
+
+        img.src = url.toString();
+      }
+
+    } catch (error) {
+      alert(
+        'Could not refresh snapshot: ' +
+        error.message
+      );
+    }
+  };
+
+
   async function loadCameraActivity() {
     const panel =
       document.getElementById('cameraActivityList');
@@ -1006,6 +1088,7 @@ fetch(base + '/api/bootstrap')
                     src="${base}/api/camera/${item.entity.entity_id}"
                     alt="${item.name}"
                     loading="lazy"
+                    data-camera-entity="${item.entity.entity_id}"
                     style="
                       width:100%;
                       height:100%;
@@ -1031,9 +1114,36 @@ fetch(base + '/api/bootstrap')
                     </span>
                   </span>
 
-                  <b style="font-size:12px">
-                    ${item.state?.state || '—'}
-                  </b>
+                  <span style="
+                    display:flex;
+                    align-items:center;
+                    gap:8px;
+                  ">
+                    <b style="font-size:12px">
+                      ${item.state?.state || '—'}
+                    </b>
+
+                    ${snapshotButtonFor(
+                      item.entity.entity_id
+                    ) ? `
+                      <button
+                        onclick="refreshCameraSnapshot(
+                          '${item.entity.entity_id}'
+                        )"
+                        style="
+                          background:var(--card2);
+                          color:var(--text);
+                          border:1px solid var(--line);
+                          border-radius:10px;
+                          padding:6px 9px;
+                          font:inherit;
+                          font-size:11px;
+                          font-weight:700;
+                        ">
+                        Refresh Snapshot
+                      </button>
+                    ` : ''}
+                  </span>
                 </div>
 
               </div>
