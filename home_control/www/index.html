@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.5</div>
+<div class="key">Home Control • 1.0.6</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -1737,10 +1737,10 @@ fetch(base + '/api/bootstrap')
 
       return `
         <div style="
-          padding:${prominent ? '16px' : '12px 0'};
+          padding:${prominent ? '16px' : '12px 12px 12px 16px'};
           ${prominent
             ? 'background:var(--card2);border:1px solid var(--line);border-radius:16px;margin-bottom:12px;'
-            : 'border-bottom:1px solid var(--line);'}
+            : 'border-bottom:1px solid var(--line);border-left:3px solid var(--line);'}
         ">
           <div style="
             display:flex;
@@ -1749,8 +1749,29 @@ fetch(base + '/api/bootstrap')
             gap:14px;
           ">
             <span>
-              ${prominent ? '<div class="key" style="margin-bottom:4px">Group control</div>' : ''}
-              <strong style="${prominent ? 'font-size:16px;' : ''}">
+              ${prominent ? `
+                <div style="
+                  display:inline-flex;
+                  align-items:center;
+                  gap:5px;
+                  padding:3px 7px;
+                  border-radius:999px;
+                  background:var(--bg);
+                  border:1px solid var(--line);
+                  margin-bottom:7px;
+                  font-size:9px;
+                  font-weight:800;
+                  letter-spacing:.11em;
+                  text-transform:uppercase;
+                ">
+                  Room control
+                </div>
+              ` : `
+                <div class="key" style="margin-bottom:3px">
+                  Individual light
+                </div>
+              `}
+              <strong style="${prominent ? 'font-size:17px;' : 'font-size:14px;'}">
                 ${name}
               </strong>
             </span>
@@ -2280,7 +2301,7 @@ fetch(base + '/api/bootstrap')
 
       ${roomLights.length ? `
         <div class="key" style="margin:0 0 8px 2px">
-          Lighting
+          Room lights
         </div>
 
         ${groupRows ? `
