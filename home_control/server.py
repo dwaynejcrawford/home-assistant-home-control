@@ -225,7 +225,7 @@ async def call_service(request):
                 "button.front_door_take_snapshot",
                 "button.side_porch_take_snapshot",
                 "button.main_floor_take_snapshot",
-                "button.garage_take_snapshot",
+                "button.garage_camera_take_snapshot",
             }
 
             if entity_id not in allowed_snapshot_buttons:
