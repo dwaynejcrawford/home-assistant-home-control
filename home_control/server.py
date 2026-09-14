@@ -349,6 +349,168 @@ async def camera_image(request):
         )
 
 
+
+async def camera_signals(request):
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=25)
+        ) as session:
+            states = await rest_get(
+                session,
+                "/states"
+            )
+
+            registries = await get_registries(
+                session
+            )
+
+        areas = registries["areas"]
+        devices = registries["devices"]
+        entities = registries["entities"]
+
+        state_map = {
+            item["entity_id"]: item
+            for item in states
+        }
+
+        device_map = {
+            item["id"]: item
+            for item in devices
+        }
+
+        area_map = {
+            item["area_id"]: item
+            for item in areas
+        }
+
+        ring_device_ids = {
+            entity.get("device_id")
+            for entity in entities
+            if (
+                entity.get("platform") == "ring"
+                and entity.get("device_id")
+            )
+        }
+
+        allowed_domains = {
+            "camera",
+            "binary_sensor",
+            "sensor",
+            "event",
+            "button",
+        }
+
+        results = []
+
+        for entity in entities:
+            entity_id = entity.get(
+                "entity_id",
+                ""
+            )
+
+            if "." not in entity_id:
+                continue
+
+            domain = entity_id.split(
+                ".",
+                1
+            )[0]
+
+            if domain not in allowed_domains:
+                continue
+
+            is_ring_platform = (
+                entity.get("platform") == "ring"
+            )
+
+            is_ring_device = (
+                entity.get("device_id")
+                in ring_device_ids
+            )
+
+            if not (
+                is_ring_platform
+                or is_ring_device
+            ):
+                continue
+
+            state = state_map.get(
+                entity_id,
+                {}
+            )
+
+            device = device_map.get(
+                entity.get("device_id"),
+                {}
+            )
+
+            area_id = (
+                entity.get("area_id")
+                or device.get("area_id")
+            )
+
+            area = area_map.get(
+                area_id,
+                {}
+            )
+
+            attrs = state.get(
+                "attributes",
+                {}
+            )
+
+            useful_attributes = {}
+
+            for key in [
+                "device_class",
+                "friendly_name",
+                "event_types",
+                "event_type",
+                "attribution",
+            ]:
+                if key in attrs:
+                    useful_attributes[key] = attrs[key]
+
+            results.append({
+                "entity_id": entity_id,
+                "domain": domain,
+                "platform": entity.get("platform"),
+                "state": state.get("state"),
+                "last_changed": state.get("last_changed"),
+                "last_updated": state.get("last_updated"),
+                "area": area.get("name"),
+                "device_name":
+                    device.get("name_by_user")
+                    or device.get("name"),
+                "attributes": useful_attributes,
+            })
+
+        results.sort(
+            key=lambda item: (
+                item.get("area") or "",
+                item.get("domain") or "",
+                item.get("entity_id") or "",
+            )
+        )
+
+        return web.json_response({
+            "count": len(results),
+            "signals": results,
+        })
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: CAMERA SIGNAL ERROR:",
+            repr(error),
+            flush=True,
+        )
+
+        return web.json_response(
+            {"error": repr(error)},
+            status=502,
+        )
+
+
 async def index(request):
     return web.FileResponse(WWW / "index.html")
 
@@ -367,6 +529,7 @@ app.router.add_get("/", index)
 app.router.add_get("/api/bootstrap", bootstrap)
 app.router.add_get("/api/states", states)
 app.router.add_get("/api/health", health)
+app.router.add_get("/api/camera-signals", camera_signals)
 app.router.add_get("/api/camera/{entity_id}", camera_image)
 app.router.add_post("/api/service", call_service)
 
