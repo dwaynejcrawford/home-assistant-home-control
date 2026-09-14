@@ -5,6 +5,7 @@ from pathlib import Path
 from aiohttp import ClientSession, ClientTimeout, web
 
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
+CORE = "http://supervisor/core"
 REST = "http://supervisor/core/api"
 WS = "ws://supervisor/core/websocket"
 WWW = Path("/www")
@@ -429,6 +430,79 @@ async def camera_image(request):
 
 
 
+async def media_artwork(request):
+    entity_id = request.match_info.get("entity_id", "")
+
+    if not entity_id.startswith("media_player."):
+        return web.json_response(
+            {"error": "Invalid media player entity"},
+            status=400,
+        )
+
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=20)
+        ) as session:
+            state = await rest_get(
+                session,
+                f"/states/{entity_id}",
+            )
+
+            picture = (
+                state.get("attributes", {})
+                .get("entity_picture")
+            )
+
+            if not (
+                isinstance(picture, str)
+                and picture.startswith("/api/")
+            ):
+                return web.json_response(
+                    {"error": "No proxied artwork"},
+                    status=404,
+                )
+
+            async with session.get(
+                CORE + picture,
+                headers={
+                    "Authorization": f"Bearer {TOKEN}",
+                },
+            ) as response:
+                response.raise_for_status()
+
+                body = await response.read()
+
+                content_type = response.headers.get(
+                    "Content-Type",
+                    "image/jpeg"
+                )
+
+        return web.Response(
+            body=body,
+            content_type=content_type.split(";")[0],
+            headers={
+                "Cache-Control": "no-store"
+            },
+        )
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: MEDIA ARTWORK ERROR:",
+            entity_id,
+            type(error).__name__,
+            flush=True,
+        )
+
+        return web.json_response(
+            {
+                "error": type(error).__name__,
+                "message": "Media artwork unavailable",
+            },
+            status=502,
+        )
+
+
+
 async def camera_signals(request):
     try:
         async with ClientSession(
@@ -791,6 +865,7 @@ app.router.add_get("/api/ring-mqtt-diagnostics", ring_mqtt_diagnostics)
 app.router.add_get("/api/entity/{entity_id}", raw_entity_state)
 app.router.add_get("/api/camera-signals", camera_signals)
 app.router.add_get("/api/camera/{entity_id}", camera_image)
+app.router.add_get("/api/media-artwork/{entity_id}", media_artwork)
 app.router.add_post("/api/service", call_service)
 
 web.run_app(

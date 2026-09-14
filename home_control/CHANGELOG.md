@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.10
+
+- Add a safe server-side media artwork proxy for media player entity pictures.
+- Show media artwork and playback metadata in compact room media summaries.
+- Move room media controls behind an expandable control surface.
+
 ## 1.0.9
 
 - Replace raw room audit blocks with cleaner household-facing room summaries.
