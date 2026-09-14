@@ -150,7 +150,10 @@ async def bootstrap(request):
         )
 
         return web.json_response(
-            {"error": repr(error)},
+            {
+                "error": type(error).__name__,
+                "message": str(error).split(" headers=")[0],
+            },
             status=502,
         )
 
@@ -167,7 +170,10 @@ async def states(request):
 
     except Exception as error:
         return web.json_response(
-            {"error": repr(error)},
+            {
+                "error": type(error).__name__,
+                "message": str(error).split(" headers=")[0],
+            },
             status=502,
         )
 
@@ -293,7 +299,10 @@ async def call_service(request):
         )
 
         return web.json_response(
-            {"error": repr(error)},
+            {
+                "error": type(error).__name__,
+                "message": str(error).split(" headers=")[0],
+            },
             status=502,
         )
 
@@ -344,7 +353,10 @@ async def camera_image(request):
         )
 
         return web.json_response(
-            {"error": repr(error)},
+            {
+                "error": type(error).__name__,
+                "message": str(error).split(" headers=")[0],
+            },
             status=502,
         )
 
@@ -515,7 +527,10 @@ async def camera_signals(request):
         )
 
         return web.json_response(
-            {"error": repr(error)},
+            {
+                "error": type(error).__name__,
+                "message": str(error).split(" headers=")[0],
+            },
             status=502,
         )
 
@@ -550,7 +565,98 @@ async def raw_entity_state(request):
         )
 
         return web.json_response(
-            {"error": repr(error)},
+            {
+                "error": type(error).__name__,
+                "message": str(error).split(" headers=")[0],
+            },
+            status=502,
+        )
+
+
+
+async def ring_mqtt_diagnostics(request):
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=20)
+        ) as session:
+            states = await rest_get(
+                session,
+                "/states",
+            )
+
+        keywords = (
+            "ring",
+            "record",
+            "recording",
+            "video",
+            "event",
+            "motion",
+            "ding",
+        )
+
+        results = []
+
+        for state in states:
+            entity_id = state.get("entity_id", "")
+            attrs = state.get("attributes", {})
+
+            friendly_name = str(
+                attrs.get("friendly_name", "")
+            )
+
+            search_text = (
+                entity_id + " " + friendly_name
+            ).lower()
+
+            if not any(
+                word in search_text
+                for word in keywords
+            ):
+                continue
+
+            useful = {}
+
+            for key, value in attrs.items():
+                key_lower = key.lower()
+
+                if any(
+                    term in key_lower
+                    for term in (
+                        "url",
+                        "record",
+                        "video",
+                        "event",
+                        "motion",
+                        "ding",
+                        "media",
+                    )
+                ):
+                    useful[key] = value
+
+            results.append({
+                "entity_id": entity_id,
+                "state": state.get("state"),
+                "friendly_name": friendly_name,
+                "attributes": useful,
+            })
+
+        return web.json_response({
+            "count": len(results),
+            "entities": results,
+        })
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: RING MQTT DIAGNOSTIC ERROR:",
+            type(error).__name__,
+            flush=True,
+        )
+
+        return web.json_response(
+            {
+                "error": type(error).__name__,
+                "message": "Ring MQTT diagnostic request failed",
+            },
             status=502,
         )
 
@@ -573,6 +679,7 @@ app.router.add_get("/", index)
 app.router.add_get("/api/bootstrap", bootstrap)
 app.router.add_get("/api/states", states)
 app.router.add_get("/api/health", health)
+app.router.add_get("/api/ring-mqtt-diagnostics", ring_mqtt_diagnostics)
 app.router.add_get("/api/entity/{entity_id}", raw_entity_state)
 app.router.add_get("/api/camera-signals", camera_signals)
 app.router.add_get("/api/camera/{entity_id}", camera_image)
