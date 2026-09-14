@@ -520,6 +520,41 @@ async def camera_signals(request):
         )
 
 
+
+async def raw_entity_state(request):
+    entity_id = request.match_info.get("entity_id", "")
+
+    if not entity_id:
+        return web.json_response(
+            {"error": "Missing entity_id"},
+            status=400,
+        )
+
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=15)
+        ) as session:
+            state = await rest_get(
+                session,
+                f"/states/{entity_id}",
+            )
+
+        return web.json_response(state)
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: RAW STATE ERROR:",
+            entity_id,
+            repr(error),
+            flush=True,
+        )
+
+        return web.json_response(
+            {"error": repr(error)},
+            status=502,
+        )
+
+
 async def index(request):
     return web.FileResponse(WWW / "index.html")
 
@@ -538,6 +573,7 @@ app.router.add_get("/", index)
 app.router.add_get("/api/bootstrap", bootstrap)
 app.router.add_get("/api/states", states)
 app.router.add_get("/api/health", health)
+app.router.add_get("/api/entity/{entity_id}", raw_entity_state)
 app.router.add_get("/api/camera-signals", camera_signals)
 app.router.add_get("/api/camera/{entity_id}", camera_image)
 app.router.add_post("/api/service", call_service)
