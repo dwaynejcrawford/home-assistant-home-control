@@ -170,7 +170,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 0.7.5</div>
+<div class="key">Home Control • 0.7.6</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -258,7 +258,7 @@ Loading cameras…
 
 <div style="margin-top:18px">
   <button
-    onclick="window.open(base + '/api/camera-signals', '_blank')"
+    onclick="loadCameraDiagnostics()"
     style="
       background:var(--card2);
       color:var(--text);
@@ -270,6 +270,11 @@ Loading cameras…
     ">
     Camera Diagnostics
   </button>
+
+  <div
+    id="cameraDiagnostics"
+    style="display:none;margin-top:14px">
+  </div>
 </div>
 
 <div style="margin-top:14px">
@@ -665,6 +670,80 @@ fetch(base + '/api/bootstrap')
     ).join('');
 
 
+
+
+
+  window.loadCameraDiagnostics = async function() {
+    const panel =
+      document.getElementById('cameraDiagnostics');
+
+    panel.style.display = 'block';
+    panel.innerHTML =
+      '<div class="banner">Loading Ring signals…</div>';
+
+    try {
+      const response = await fetch(
+        base + '/api/camera-signals'
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Diagnostics failed: ' + response.status
+        );
+      }
+
+      const data = await response.json();
+      const signals = data.signals || [];
+
+      panel.innerHTML = `
+        <div class="banner"
+             style="margin-bottom:12px">
+          ${signals.length} Ring-related entities
+        </div>
+
+        <div class="area-list">
+          ${signals.map(item => `
+            <div class="row">
+              <span>
+                <strong>
+                  ${item.attributes?.friendly_name ||
+                    item.entity_id}
+                </strong><br>
+
+                <span class="muted"
+                      style="font-size:11px">
+                  ${item.domain} •
+                  ${item.area || 'Unassigned'}<br>
+                  ${item.entity_id}
+                </span>
+              </span>
+
+              <span style="text-align:right">
+                <b>${item.state ?? '—'}</b><br>
+
+                <span class="muted"
+                      style="font-size:10px">
+                  ${item.last_changed
+                    ? new Date(
+                        item.last_changed
+                      ).toLocaleString()
+                    : '—'}
+                </span>
+              </span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+
+    } catch (error) {
+      panel.innerHTML = `
+        <div class="banner">
+          Diagnostics error:
+          ${error.message}
+        </div>
+      `;
+    }
+  };
 
 
   window.openCameras = function() {
