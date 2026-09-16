@@ -194,7 +194,12 @@ async def call_service(request):
                 "turn_off",
             },
             "media_player": {
+                "media_next_track",
+                "media_previous_track",
                 "media_play_pause",
+                "repeat_set",
+                "select_source",
+                "shuffle_set",
                 "volume_mute",
                 "volume_set",
             },
@@ -331,6 +336,37 @@ async def call_service(request):
                     0.0,
                     min(1.0, volume_level)
                 )
+
+            if service == "select_source":
+                source = data.get("source")
+
+                if not isinstance(source, str) or not source:
+                    return web.json_response(
+                        {"error": "Invalid source"},
+                        status=400,
+                    )
+
+                service_data["source"] = source[:120]
+
+            if service == "shuffle_set":
+                service_data["shuffle"] = bool(
+                    data.get("shuffle")
+                )
+
+            if service == "repeat_set":
+                repeat = data.get("repeat")
+
+                if repeat not in {
+                    "off",
+                    "all",
+                    "one",
+                }:
+                    return web.json_response(
+                        {"error": "Invalid repeat mode"},
+                        status=400,
+                    )
+
+                service_data["repeat"] = repeat
 
         async with ClientSession(
             timeout=ClientTimeout(total=15)

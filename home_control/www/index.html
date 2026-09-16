@@ -246,13 +246,36 @@ h2 {
   font-weight:700;
   margin-top:10px;
 }
+
+.button-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.control-button,
+.control-select {
+  background:var(--card2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:8px 10px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+}
+
+.control-button[disabled] {
+  opacity:.45;
+}
 </style>
 </head>
 
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.11</div>
+<div class="key">Home Control • 1.0.12</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -464,6 +487,21 @@ padding:10px 14px;
 font:inherit;
 ">
 Back to favorites
+</button>
+</div>
+
+</div>
+
+<div id="mediaDetail" style="display:none">
+
+<h2 id="mediaDetailTitle">Media</h2>
+
+<div id="mediaDetailList"></div>
+
+<div style="margin-top:14px">
+<button onclick="closeMediaDetail()"
+class="control-button">
+Back to room
 </button>
 </div>
 
@@ -1621,6 +1659,10 @@ fetch(base + '/api/bootstrap')
     ).style.display = 'none';
 
     document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
       'lightingDetail'
     ).style.display = 'none';
 
@@ -1795,6 +1837,10 @@ fetch(base + '/api/bootstrap')
 
     document.getElementById(
       'roomDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'mediaDetail'
     ).style.display = 'none';
 
     document.getElementById(
@@ -2103,6 +2149,10 @@ fetch(base + '/api/bootstrap')
     ).style.display = 'none';
 
     document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
       'roomDetail'
     ).style.display = 'none';
 
@@ -2352,6 +2402,97 @@ fetch(base + '/api/bootstrap')
     loft: 'Loft',
     garage: 'Garage'
   };
+
+  const mediaFeatures = {
+    pause: 1,
+    volumeSet: 4,
+    volumeMute: 8,
+    previousTrack: 16,
+    nextTrack: 32,
+    selectSource: 2048,
+    play: 16384,
+    shuffleSet: 32768,
+    repeatSet: 262144
+  };
+
+
+  function mediaEntityFor(entityId) {
+    return enabledEntities.find(entity =>
+      entity.entity_id === entityId
+    );
+  }
+
+
+  function mediaStateFor(entityId) {
+    return stateMap.get(entityId) || {};
+  }
+
+
+  function mediaAttrsFor(entityId) {
+    return mediaStateFor(entityId).attributes || {};
+  }
+
+
+  function mediaSupports(entityId, feature) {
+    const supported =
+      mediaAttrsFor(entityId).supported_features;
+
+    return (
+      typeof supported === 'number' &&
+      Boolean(supported & feature)
+    );
+  }
+
+
+  function mediaDisplayName(entityId) {
+    const entity = mediaEntityFor(entityId);
+    const state = mediaStateFor(entityId);
+
+    return (
+      entity?.name ||
+      entity?.original_name ||
+      state?.attributes?.friendly_name ||
+      entityId
+    );
+  }
+
+
+  function mediaSummaryParts(attrs, state) {
+    return [
+      state?.state,
+      attrs.source,
+      attrs.media_title,
+      attrs.media_artist
+    ].filter(Boolean);
+  }
+
+
+  function mediaProgressText(attrs) {
+    const duration = attrs.media_duration;
+    const position = attrs.media_position;
+
+    if (
+      typeof duration !== 'number' ||
+      typeof position !== 'number' ||
+      duration <= 0
+    ) {
+      return '';
+    }
+
+    const formatSeconds = value => {
+      const safe = Math.max(0, Math.floor(value));
+      const minutes = Math.floor(safe / 60);
+      const seconds = String(safe % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    };
+
+    return (
+      formatSeconds(position) +
+      ' / ' +
+      formatSeconds(duration)
+    );
+  }
+
 
   window.openRoom = function(key) {
     const ids = window.favoriteAreaIds[key] || [];
@@ -2870,29 +3011,17 @@ fetch(base + '/api/bootstrap')
       const state =
         stateMap.get(entity.entity_id);
 
+      const attrs =
+        state?.attributes || {};
+
       const name =
-        entity.name ||
-        entity.original_name ||
-        state?.attributes?.friendly_name ||
-        entity.entity_id;
-
-      const source =
-        state?.attributes?.source;
-
-      const title =
-        state?.attributes?.media_title;
-
-      const artist =
-        state?.attributes?.media_artist;
-
-      const album =
-        state?.attributes?.media_album_name;
+        mediaDisplayName(entity.entity_id);
 
       const artwork =
-        state?.attributes?.entity_picture;
+        attrs.entity_picture;
 
       const volume =
-        state?.attributes?.volume_level;
+        attrs.volume_level;
 
       const volumePct =
         typeof volume === 'number'
@@ -2900,20 +3029,30 @@ fetch(base + '/api/bootstrap')
           : null;
 
       const muted =
-        state?.attributes?.is_volume_muted === true;
+        attrs.is_volume_muted === true;
 
-      const details = [
-        state?.state,
-        source,
-        title,
-        artist
-      ].filter(Boolean);
+      const progress =
+        mediaProgressText(attrs);
+
+      const details =
+        mediaSummaryParts(attrs, state);
 
       return `
-        <div style="
-          padding:14px 0;
-          border-bottom:1px solid var(--line);
-        ">
+        <button
+          onclick="openMediaDetail(
+            '${entity.entity_id}',
+            '${key}'
+          )"
+          style="
+            width:100%;
+            padding:14px 0;
+            border:0;
+            border-bottom:1px solid var(--line);
+            background:transparent;
+            color:inherit;
+            font:inherit;
+            text-align:left;
+          ">
           <div style="
             display:flex;
             gap:12px;
@@ -2937,109 +3076,27 @@ fetch(base + '/api/bootstrap')
             ` : ''}
 
             <div style="min-width:0;flex:1">
-              <strong>${name}</strong>
+              <strong>${escapeHtml(name)}</strong>
 
               <div class="muted"
                    style="font-size:12px;margin-top:4px">
-                ${details.join(' • ') || 'Idle'}
-                ${album ? `<br>${album}` : ''}
+                ${escapeHtml(details.join(' • ') || 'Idle')}
+                ${attrs.media_album_name ? `
+                  <br>${escapeHtml(attrs.media_album_name)}
+                ` : ''}
+                ${volumePct !== null ? `
+                  <br>Volume ${volumePct}%${muted ? ' • Muted' : ''}
+                ` : ''}
+                ${progress ? `<br>${escapeHtml(progress)}` : ''}
               </div>
             </div>
+
+            <span class="muted"
+                  style="font-size:18px">
+              ›
+            </span>
           </div>
-
-          <details style="margin-top:10px">
-            <summary class="key" style="
-              min-height:38px;
-              display:flex;
-              align-items:center;
-              cursor:pointer;
-            ">
-              Controls
-              ${volumePct !== null ? ` • Volume ${volumePct}%` : ''}
-              ${muted ? ' • Muted' : ''}
-            </summary>
-
-            <div style="
-              display:flex;
-              gap:8px;
-              flex-wrap:wrap;
-              margin-top:8px;
-              align-items:center;
-            ">
-            <button
-              onclick="mediaPlayPause('${entity.entity_id}')"
-              style="
-                background:var(--card2);
-                color:var(--text);
-                border:1px solid var(--line);
-                border-radius:11px;
-                padding:7px 10px;
-                font:inherit;
-                font-size:12px;
-                font-weight:700;
-              ">
-              Play/Pause
-            </button>
-
-            ${volumePct !== null ? `
-              <button
-                onclick="mediaVolume(
-                  '${entity.entity_id}',
-                  ${Math.max(0, volumePct - 5)}
-                )"
-                style="
-                  background:var(--card2);
-                  color:var(--text);
-                  border:1px solid var(--line);
-                  border-radius:11px;
-                  padding:7px 10px;
-                  font:inherit;
-                ">
-                −
-              </button>
-
-              <span class="muted"
-                    style="font-size:12px">
-                Vol ${volumePct}%
-              </span>
-
-              <button
-                onclick="mediaVolume(
-                  '${entity.entity_id}',
-                  ${Math.min(100, volumePct + 5)}
-                )"
-                style="
-                  background:var(--card2);
-                  color:var(--text);
-                  border:1px solid var(--line);
-                  border-radius:11px;
-                  padding:7px 10px;
-                  font:inherit;
-                ">
-                +
-              </button>
-
-              <button
-                onclick="mediaMute(
-                  '${entity.entity_id}',
-                  ${!muted}
-                )"
-                style="
-                  background:var(--card2);
-                  color:var(--text);
-                  border:1px solid var(--line);
-                  border-radius:11px;
-                  padding:7px 10px;
-                  font:inherit;
-                  font-size:12px;
-                  font-weight:700;
-                ">
-                ${muted ? 'Unmute' : 'Mute'}
-              </button>
-            ` : ''}
-            </div>
-          </details>
-        </div>
+        </button>
       `;
     }).join('');
 
@@ -3333,6 +3390,10 @@ fetch(base + '/api/bootstrap')
     ).style.display = 'none';
 
     document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
       'lightingDetail'
     ).style.display = 'none';
 
@@ -3403,6 +3464,281 @@ fetch(base + '/api/bootstrap')
 
 
 
+  let activeMediaEntityId = null;
+  let activeMediaRoomKey = null;
+
+
+  function renderMediaDetail(entityId, roomKey) {
+    const attrs =
+      mediaAttrsFor(entityId);
+
+    const state =
+      mediaStateFor(entityId);
+
+    const name =
+      mediaDisplayName(entityId);
+
+    const volume =
+      attrs.volume_level;
+
+    const volumePct =
+      typeof volume === 'number'
+        ? Math.round(volume * 100)
+        : null;
+
+    const muted =
+      attrs.is_volume_muted === true;
+
+    const artwork =
+      attrs.entity_picture;
+
+    const progress =
+      mediaProgressText(attrs);
+
+    const summary =
+      mediaSummaryParts(attrs, state);
+
+    const sources =
+      Array.isArray(attrs.source_list)
+        ? attrs.source_list
+        : [];
+
+    const repeatModes = [
+      'off',
+      'all',
+      'one'
+    ];
+
+    document.getElementById(
+      'mediaDetailTitle'
+    ).textContent = name;
+
+    document.getElementById(
+      'mediaDetailList'
+    ).innerHTML = `
+      <div class="card" style="margin-bottom:18px">
+        <div style="
+          display:flex;
+          gap:14px;
+          align-items:center;
+        ">
+          ${artwork ? `
+            <img
+              src="${base}/api/media-artwork/${entityId}"
+              alt=""
+              loading="lazy"
+              style="
+                width:82px;
+                height:82px;
+                border-radius:14px;
+                object-fit:cover;
+                background:var(--card2);
+                flex:0 0 auto;
+              "
+              onerror="this.style.display='none'"
+            >
+          ` : ''}
+
+          <div style="min-width:0">
+            <div class="key">Now playing</div>
+            <div class="status-value" style="font-size:18px">
+              ${escapeHtml(attrs.media_title || friendlyState(state.state))}
+            </div>
+            <div class="status-note">
+              ${escapeHtml(
+                [
+                  attrs.media_artist,
+                  attrs.media_album_name,
+                  attrs.source
+                ].filter(Boolean).join(' • ') ||
+                summary.join(' • ') ||
+                'No media details exposed'
+              )}
+            </div>
+          </div>
+        </div>
+
+        ${progress ? `
+          <div class="status-note" style="margin-top:14px">
+            Progress: ${escapeHtml(progress)}
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="key">Playback</div>
+        <div class="button-row" style="margin-top:10px">
+          ${mediaSupports(entityId, mediaFeatures.previousTrack) ? `
+            <button
+              class="control-button"
+              onclick="mediaPrevious('${entityId}')">
+              Previous
+            </button>
+          ` : ''}
+
+          <button
+            class="control-button"
+            onclick="mediaPlayPause('${entityId}')">
+            Play/Pause
+          </button>
+
+          ${mediaSupports(entityId, mediaFeatures.nextTrack) ? `
+            <button
+              class="control-button"
+              onclick="mediaNext('${entityId}')">
+              Next
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      ${volumePct !== null ? `
+        <div class="card" style="margin-bottom:18px">
+          <div class="key">Volume</div>
+          <div class="button-row" style="margin-top:10px">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value="${volumePct}"
+              onchange="mediaVolume(
+                '${entityId}',
+                this.value
+              )"
+              style="flex:1;min-width:160px"
+            >
+            <span class="muted" style="font-size:12px">
+              ${volumePct}%
+            </span>
+            ${typeof attrs.is_volume_muted === 'boolean' ? `
+              <button
+                class="control-button"
+                onclick="mediaMute(
+                  '${entityId}',
+                  ${!muted}
+                )">
+                ${muted ? 'Unmute' : 'Mute'}
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      ` : ''}
+
+      ${(
+        sources.length &&
+        mediaSupports(entityId, mediaFeatures.selectSource)
+      ) ? `
+        <div class="card" style="margin-bottom:18px">
+          <div class="key">Source</div>
+          <select
+            class="control-select"
+            onchange="mediaSource(
+              '${entityId}',
+              this.value
+            )"
+            style="width:100%;margin-top:10px">
+            ${sources.map(source => `
+              <option
+                value="${escapeHtml(source)}"
+                ${source === attrs.source ? 'selected' : ''}>
+                ${escapeHtml(source)}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+      ` : ''}
+
+      ${(
+        (
+          typeof attrs.shuffle === 'boolean' &&
+          mediaSupports(entityId, mediaFeatures.shuffleSet)
+        ) ||
+        (
+          typeof attrs.repeat === 'string' &&
+          mediaSupports(entityId, mediaFeatures.repeatSet)
+        )
+      ) ? `
+        <div class="card" style="margin-bottom:18px">
+          <div class="key">Playback mode</div>
+          <div class="button-row" style="margin-top:10px">
+            ${(
+              typeof attrs.shuffle === 'boolean' &&
+              mediaSupports(entityId, mediaFeatures.shuffleSet)
+            ) ? `
+              <button
+                class="control-button"
+                onclick="mediaShuffle(
+                  '${entityId}',
+                  ${!attrs.shuffle}
+                )">
+                Shuffle ${attrs.shuffle ? 'On' : 'Off'}
+              </button>
+            ` : ''}
+
+            ${(
+              typeof attrs.repeat === 'string' &&
+              mediaSupports(entityId, mediaFeatures.repeatSet)
+            ) ? `
+              <select
+                class="control-select"
+                onchange="mediaRepeat(
+                  '${entityId}',
+                  this.value
+                )">
+                ${repeatModes.map(mode => `
+                  <option
+                    value="${mode}"
+                    ${mode === attrs.repeat ? 'selected' : ''}>
+                    Repeat ${mode}
+                  </option>
+                `).join('')}
+              </select>
+            ` : ''}
+          </div>
+        </div>
+      ` : ''}
+    `;
+
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'block';
+
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top:
+        document.getElementById(
+          'mediaDetail'
+        ).offsetTop - 20,
+      behavior: 'smooth'
+    });
+  }
+
+
+  window.openMediaDetail = function(entityId, roomKey) {
+    activeMediaEntityId = entityId;
+    activeMediaRoomKey = roomKey;
+
+    renderMediaDetail(
+      entityId,
+      roomKey
+    );
+  };
+
+
+  window.closeMediaDetail = function() {
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    if (activeMediaRoomKey) {
+      openRoom(activeMediaRoomKey);
+    }
+  };
+
+
   async function callMediaService(
     entityId,
     service,
@@ -3432,6 +3768,13 @@ fetch(base + '/api/bootstrap')
     }
 
     await refreshStates();
+
+    if (activeMediaEntityId === entityId) {
+      renderMediaDetail(
+        entityId,
+        activeMediaRoomKey
+      );
+    }
   }
 
 
@@ -3442,6 +3785,36 @@ fetch(base + '/api/bootstrap')
       await callMediaService(
         entityId,
         'media_play_pause'
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaPrevious =
+    async function(entityId) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'media_previous_track'
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaNext =
+    async function(entityId) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'media_next_track'
       );
 
     } catch (error) {
@@ -3481,6 +3854,60 @@ fetch(base + '/api/bootstrap')
               0,
               Math.min(100, percent)
             ) / 100
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaSource =
+    async function(entityId, source) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'select_source',
+        {
+          source
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaShuffle =
+    async function(entityId, shuffle) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'shuffle_set',
+        {
+          shuffle
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaRepeat =
+    async function(entityId, repeat) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'repeat_set',
+        {
+          repeat
         }
       );
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.12
+
+- Add full media detail views from compact room media cards.
+- Add capability-aware previous, next, source, shuffle, and repeat controls.
+- Keep existing safe media service allowlists and artwork proxy behavior.
+
 ## 1.0.11
 
 - Add a read-only Network page for WAN, Wi-Fi infrastructure, client, and other telemetry.
