@@ -252,7 +252,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.10</div>
+<div class="key">Home Control • 1.0.11</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -310,6 +310,12 @@ Discovering Home Assistant Areas and devices
 <div class="icon">◉</div>
 <strong>Cameras</strong>
 <div class="detail" id="cameras">Detecting…</div>
+</div>
+
+<div class="card favorite wide" onclick="openNetwork()">
+<div class="icon">⇄</div>
+<strong>Network</strong>
+<div class="detail" id="network">Detecting…</div>
 </div>
 
 </div>
@@ -370,6 +376,33 @@ Loading cameras…
 
 <div style="margin-top:14px">
 <button onclick="closeCameras()"
+style="
+background:var(--card2);
+color:var(--text);
+border:1px solid var(--line);
+border-radius:14px;
+padding:10px 14px;
+font:inherit;
+">
+Back to favorites
+</button>
+</div>
+
+</div>
+
+<div id="networkDetail" style="display:none">
+
+<h2>Network</h2>
+
+<div class="banner" id="networkSummary"
+     style="margin:0 0 18px 0">
+Loading network telemetry…
+</div>
+
+<div id="networkDetailList"></div>
+
+<div style="margin-top:14px">
+<button onclick="closeNetwork()"
 style="
 background:var(--card2);
 color:var(--text);
@@ -861,6 +894,11 @@ fetch(base + '/api/bootstrap')
         ]
       )
     );
+
+    document.getElementById('network').textContent =
+      networkStates.length
+        ? plural(networkStates.length, 'network signal') + ' available'
+        : 'No network telemetry yet';
 
     const wanStates = networkStates.filter(state =>
       stateMatches(
@@ -1579,6 +1617,10 @@ fetch(base + '/api/bootstrap')
     loadCameraActivity();
 
     document.getElementById(
+      'networkDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
       'lightingDetail'
     ).style.display = 'none';
 
@@ -1599,6 +1641,237 @@ fetch(base + '/api/bootstrap')
   window.closeCameras = function() {
     document.getElementById(
       'cameraDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+
+  function networkItemTone(item) {
+    const state = String(item.state || '').toLowerCase();
+
+    if ([
+      'unavailable',
+      'unknown',
+      'offline',
+      'off',
+      'problem'
+    ].includes(state)) {
+      return 'warn';
+    }
+
+    if ([
+      'online',
+      'on',
+      'connected',
+      'ok',
+      'up'
+    ].includes(state)) {
+      return 'good';
+    }
+
+    return '';
+  }
+
+
+  function networkGroupHtml(title, items, emptyText) {
+    if (!items.length) {
+      return `
+        <div style="margin-bottom:18px">
+          <div class="key" style="margin:0 0 8px 2px">
+            ${title}
+          </div>
+          <div class="banner" style="margin:0">
+            ${emptyText}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="margin-bottom:22px">
+        <div class="key" style="margin:0 0 8px 2px">
+          ${title}
+        </div>
+        <div class="area-list">
+          ${items.map(item => {
+            const attrs = item.attributes || {};
+            const detail = [
+              item.platform,
+              attrs.device_class,
+              attrs.unit_of_measurement
+            ].filter(Boolean).join(' • ');
+
+            return `
+              <div class="row">
+                <span>
+                  <strong>${escapeHtml(item.name)}</strong><br>
+                  <span class="muted">
+                    ${escapeHtml(detail || 'Measured Home Assistant signal')}
+                  </span>
+                </span>
+                <b class="${networkItemTone(item)}">
+                  ${escapeHtml(friendlyState(item.state))}
+                </b>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+
+  function networkRecommendationHtml(data) {
+    const wan = data.wan || [];
+    const wifi = data.wifi || [];
+    const clients = data.clients || [];
+    const count = data.count || 0;
+
+    const facts = [
+      `${plural(wan.length, 'WAN signal')}`,
+      `${plural(wifi.length, 'Wi-Fi infrastructure signal')}`,
+      `${plural(clients.length, 'client signal')}`
+    ];
+
+    const issues = [
+      ...wan,
+      ...wifi,
+      ...clients
+    ].filter(item =>
+      networkItemTone(item) === 'warn'
+    );
+
+    const conclusion =
+      issues.length
+        ? `${plural(issues.length, 'signal')} may need attention.`
+        : count
+          ? 'No obvious network issue from exposed telemetry.'
+          : 'No structured network telemetry is exposed yet.';
+
+    const recommendation =
+      count
+        ? 'Review unavailable or offline signals before changing UniFi settings.'
+        : 'Expose UniFi WAN, AP, and client sensors in Home Assistant to enable diagnostics.';
+
+    return `
+      <div class="card" style="margin-bottom:20px">
+        <div class="key">Diagnostic assistant</div>
+        <div class="status-value" style="font-size:16px">
+          ${conclusion}
+        </div>
+        <div class="status-note">
+          Facts: ${facts.join(' • ')}
+        </div>
+        <div class="status-note">
+          Recommendation: ${recommendation}
+        </div>
+        <div class="status-note">
+          Confidence: ${count ? 'medium' : 'low'} • Risk: none, read-only
+        </div>
+      </div>
+    `;
+  }
+
+
+  window.openNetwork = async function() {
+    const panel =
+      document.getElementById('networkDetailList');
+
+    document.getElementById(
+      'networkDetail'
+    ).style.display = 'block';
+
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'lightingDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'networkSummary'
+    ).textContent = 'Loading network telemetry…';
+
+    panel.innerHTML = '';
+
+    try {
+      const response = await fetch(
+        base + '/api/network-signals'
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Network request failed: ' +
+          response.status
+        );
+      }
+
+      const data = await response.json();
+
+      document.getElementById(
+        'networkSummary'
+      ).textContent =
+        `${plural(data.count || 0, 'network signal')} discovered`;
+
+      panel.innerHTML = `
+        ${networkRecommendationHtml(data)}
+        ${networkGroupHtml(
+          'Internet / WAN',
+          data.wan || [],
+          'No WAN or internet health sensors were discovered.'
+        )}
+        ${networkGroupHtml(
+          'Wi-Fi infrastructure',
+          data.wifi || [],
+          'No access point or radio health sensors were discovered.'
+        )}
+        ${networkGroupHtml(
+          'Clients',
+          data.clients || [],
+          'No client signal or roaming telemetry was discovered.'
+        )}
+        ${networkGroupHtml(
+          'Other network telemetry',
+          data.other || [],
+          'No additional network telemetry was discovered.'
+        )}
+      `;
+
+      window.scrollTo({
+        top:
+          document.getElementById(
+            'networkDetail'
+          ).offsetTop - 20,
+        behavior: 'smooth'
+      });
+
+    } catch (error) {
+      document.getElementById(
+        'networkSummary'
+      ).textContent =
+        'Network telemetry unavailable';
+
+      panel.innerHTML = `
+        <div class="banner">
+          ${escapeHtml(error.message)}
+        </div>
+      `;
+    }
+  };
+
+
+  window.closeNetwork = function() {
+    document.getElementById(
+      'networkDetail'
     ).style.display = 'none';
 
     window.scrollTo({
@@ -1820,6 +2093,14 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'lightingDetail'
     ).style.display = 'block';
+
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'networkDetail'
+    ).style.display = 'none';
 
     document.getElementById(
       'roomDetail'
@@ -3042,6 +3323,14 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'roomDetail'
     ).style.display = 'block';
+
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'networkDetail'
+    ).style.display = 'none';
 
     document.getElementById(
       'lightingDetail'

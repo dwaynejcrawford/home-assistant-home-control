@@ -677,6 +677,174 @@ async def camera_signals(request):
 
 
 
+async def network_signals(request):
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=25)
+        ) as session:
+            states = await rest_get(
+                session,
+                "/states"
+            )
+
+            registries = await get_registries(
+                session
+            )
+
+        entities = registries["entities"]
+        entity_registry = {
+            item.get("entity_id"): item
+            for item in entities
+        }
+
+        categories = {
+            "wan": [],
+            "wifi": [],
+            "clients": [],
+            "other": [],
+        }
+
+        network_terms = (
+            "unifi",
+            "ucg",
+            "wan",
+            "internet",
+            "wifi",
+            "wi-fi",
+            "access point",
+            "ap ",
+            "rssi",
+            "snr",
+            "retry",
+            "interference",
+            "latency",
+            "packet loss",
+        )
+
+        wan_terms = (
+            "wan",
+            "internet",
+            "isp",
+            "packet loss",
+            "latency",
+        )
+
+        wifi_terms = (
+            "wifi",
+            "wi-fi",
+            "access point",
+            "ap ",
+            "channel",
+            "radio",
+            "utilization",
+            "interference",
+            "retry",
+        )
+
+        client_terms = (
+            "client",
+            "rssi",
+            "snr",
+            "signal",
+            "roam",
+            "tx rate",
+            "rx rate",
+        )
+
+        for state in states:
+            entity_id = state.get("entity_id", "")
+            attrs = state.get("attributes", {})
+            friendly_name = str(
+                attrs.get("friendly_name", "")
+            )
+
+            registry = entity_registry.get(
+                entity_id,
+                {}
+            )
+
+            platform = registry.get("platform")
+
+            text = (
+                entity_id + " " +
+                friendly_name + " " +
+                str(platform or "")
+            ).lower()
+
+            if not (
+                platform == "unifi"
+                or any(
+                    term in text
+                    for term in network_terms
+                )
+            ):
+                continue
+
+            useful_attributes = {}
+
+            for key in (
+                "device_class",
+                "unit_of_measurement",
+                "state_class",
+                "friendly_name",
+            ):
+                if key in attrs:
+                    useful_attributes[key] = attrs[key]
+
+            item = {
+                "entity_id": entity_id,
+                "name": friendly_name or entity_id,
+                "platform": platform,
+                "state": state.get("state"),
+                "last_updated": state.get("last_updated"),
+                "attributes": useful_attributes,
+            }
+
+            if any(term in text for term in wan_terms):
+                categories["wan"].append(item)
+            elif any(term in text for term in client_terms):
+                categories["clients"].append(item)
+            elif any(term in text for term in wifi_terms):
+                categories["wifi"].append(item)
+            else:
+                categories["other"].append(item)
+
+        for items in categories.values():
+            items.sort(
+                key=lambda item: (
+                    item.get("name") or "",
+                    item.get("entity_id") or "",
+                )
+            )
+
+        return web.json_response({
+            "wan": categories["wan"],
+            "wifi": categories["wifi"],
+            "clients": categories["clients"],
+            "other": categories["other"],
+            "count": sum(
+                len(items)
+                for items in categories.values()
+            ),
+        })
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: NETWORK SIGNAL ERROR:",
+            repr(error),
+            flush=True,
+        )
+
+        return web.json_response(
+            {
+                "error": type(error).__name__,
+                "message": "Network signal request failed",
+            },
+            status=502,
+        )
+
+
+
 async def raw_entity_state(request):
     entity_id = request.match_info.get("entity_id", "")
 
@@ -864,6 +1032,7 @@ app.router.add_get("/api/health", health)
 app.router.add_get("/api/ring-mqtt-diagnostics", ring_mqtt_diagnostics)
 app.router.add_get("/api/entity/{entity_id}", raw_entity_state)
 app.router.add_get("/api/camera-signals", camera_signals)
+app.router.add_get("/api/network-signals", network_signals)
 app.router.add_get("/api/camera/{entity_id}", camera_image)
 app.router.add_get("/api/media-artwork/{entity_id}", media_artwork)
 app.router.add_post("/api/service", call_service)

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.11
+
+- Add a read-only Network page for WAN, Wi-Fi infrastructure, client, and other telemetry.
+- Add a structured `/api/network-signals` endpoint for future diagnostics.
+- Surface initial network diagnostic facts, confidence, and read-only recommendations.
+
 ## 1.0.10
 
 - Add a safe server-side media artwork proxy for media player entity pictures.
