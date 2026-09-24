@@ -275,7 +275,7 @@ h2 {
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.12</div>
+<div class="key">Home Control • 1.0.13</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
@@ -3576,11 +3576,14 @@ fetch(base + '/api/bootstrap')
             </button>
           ` : ''}
 
-          <button
-            class="control-button"
-            onclick="mediaPlayPause('${entityId}')">
-            Play/Pause
-          </button>
+          ${(mediaSupports(entityId, mediaFeatures.play) ||
+             mediaSupports(entityId, mediaFeatures.pause)) ? `
+            <button
+              class="control-button"
+              onclick="mediaPlayPause('${entityId}')">
+              Play/Pause
+            </button>
+          ` : ''}
 
           ${mediaSupports(entityId, mediaFeatures.nextTrack) ? `
             <button

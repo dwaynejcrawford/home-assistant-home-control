@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.13
+
+- Show Play/Pause media controls only when the Home Assistant media player advertises play or pause capability.
+
+
 ## 1.0.12
 
 - Add full media detail views from compact room media cards.
