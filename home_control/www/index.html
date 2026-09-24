@@ -17,6 +17,9 @@
   --muted:#97a4b1;
   --good:#35d07f;
   --warn:#ffb020;
+  --bad:#ff5d5d;
+  --active:#7cc7ff;
+  --radius:18px;
 }
 
 * { box-sizing:border-box; }
@@ -39,7 +42,7 @@ main {
 
 h1 {
   font-size:34px;
-  letter-spacing:-.045em;
+  letter-spacing:0;
   margin:2px 0 4px;
 }
 
@@ -65,7 +68,7 @@ h2 {
   padding:13px 15px;
   border:1px solid var(--line);
   background:var(--card);
-  border-radius:16px;
+  border-radius:var(--radius);
   font-size:13px;
 }
 
@@ -73,14 +76,70 @@ h2 {
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:9px;
-  margin:13px 0 23px;
+  margin:0 0 23px;
 }
 
 .card {
   border:1px solid var(--line);
   background:var(--card);
-  border-radius:20px;
+  border-radius:var(--radius);
   padding:15px;
+}
+
+.section {
+  margin-top:27px;
+}
+
+.section h2 {
+  margin-top:0;
+}
+
+.status-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.status-card {
+  min-height:108px;
+}
+
+.status-card.wide {
+  grid-column:span 2;
+}
+
+.status-topline {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
+.status-dot {
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:var(--muted);
+  flex:0 0 auto;
+}
+
+.status-dot.good { background:var(--good); }
+.status-dot.warn { background:var(--warn); }
+.status-dot.bad { background:var(--bad); }
+.status-dot.active { background:var(--active); }
+
+.status-value {
+  margin-top:10px;
+  font-size:18px;
+  font-weight:800;
+  line-height:1.2;
+}
+
+.status-note {
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.35;
+  margin-top:5px;
 }
 
 .value {
@@ -99,6 +158,7 @@ h2 {
   min-height:142px;
   display:flex;
   flex-direction:column;
+  cursor:pointer;
 }
 
 .favorite.wide {
@@ -132,7 +192,7 @@ h2 {
 .area-list {
   border:1px solid var(--line);
   background:var(--card);
-  border-radius:20px;
+  border-radius:var(--radius);
   padding:3px 15px;
 }
 
@@ -164,43 +224,78 @@ h2 {
   color:var(--muted);
   font-size:10px;
 }
+
+.swatch-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.swatch {
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:2px solid rgba(255,255,255,.72);
+  box-shadow:0 0 0 1px var(--line);
+}
+
+.control-label {
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  margin-top:10px;
+}
+
+.button-row {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.control-button,
+.control-select {
+  background:var(--card2);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:8px 10px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+}
+
+.control-button[disabled] {
+  opacity:.45;
+}
 </style>
 </head>
 
 <body>
 <main>
 
-<div class="key">Home Control • 1.0.6</div>
+<div class="key">Home Control • 1.0.13</div>
 <h1 id="title">Connecting…</h1>
 
 <div class="muted" id="subtitle">
 Discovering Home Assistant Areas and devices
 </div>
 
-<div class="banner" id="banner">
-Reading your Home Assistant registries…
+<section class="section">
+<h2>Home Status</h2>
+
+<div class="status-grid" id="homeStatus">
+<div class="card status-card wide">
+<div class="key">Status</div>
+<div class="status-value">Reading Home Assistant…</div>
+<div class="status-note">Household signals will appear here.</div>
 </div>
-
-<div class="summary">
-
-<div class="card">
-<div class="key">HA</div>
-<div class="value" id="ha">—</div>
 </div>
+</section>
 
-<div class="card">
-<div class="key">Areas</div>
-<div class="value" id="areaCount">—</div>
-</div>
-
-<div class="card">
-<div class="key">Entities</div>
-<div class="value" id="entityCount">—</div>
-</div>
-
-</div>
-
-<h2>Your favorites</h2>
+<section class="section">
+<h2>Favorites</h2>
 
 <div class="grid">
 
@@ -240,10 +335,14 @@ Reading your Home Assistant registries…
 <div class="detail" id="cameras">Detecting…</div>
 </div>
 
+<div class="card favorite wide" onclick="openNetwork()">
+<div class="icon">⇄</div>
+<strong>Network</strong>
+<div class="detail" id="network">Detecting…</div>
 </div>
 
-
-
+</div>
+</section>
 
 <div id="cameraDetail" style="display:none">
 
@@ -314,6 +413,33 @@ Back to favorites
 
 </div>
 
+<div id="networkDetail" style="display:none">
+
+<h2>Network</h2>
+
+<div class="banner" id="networkSummary"
+     style="margin:0 0 18px 0">
+Loading network telemetry…
+</div>
+
+<div id="networkDetailList"></div>
+
+<div style="margin-top:14px">
+<button onclick="closeNetwork()"
+style="
+background:var(--card2);
+color:var(--text);
+border:1px solid var(--line);
+border-radius:14px;
+padding:10px 14px;
+font:inherit;
+">
+Back to favorites
+</button>
+</div>
+
+</div>
+
 <div id="lightingDetail" style="display:none">
 
 <h2>Lighting</h2>
@@ -366,6 +492,21 @@ Back to favorites
 
 </div>
 
+<div id="mediaDetail" style="display:none">
+
+<h2 id="mediaDetailTitle">Media</h2>
+
+<div id="mediaDetailList"></div>
+
+<div style="margin-top:14px">
+<button onclick="closeMediaDetail()"
+class="control-button">
+Back to room
+</button>
+</div>
+
+</div>
+
 <h2>Detected Home Assistant Areas</h2>
 
 <div class="area-list" id="areas">
@@ -380,6 +521,31 @@ Back to favorites
 <div class="row">
 <span>Waiting…</span>
 </div>
+</div>
+
+<h2>System</h2>
+
+<div class="banner" id="banner">
+Reading your Home Assistant registries…
+</div>
+
+<div class="summary">
+
+<div class="card">
+<div class="key">HA</div>
+<div class="value" id="ha">—</div>
+</div>
+
+<div class="card">
+<div class="key">Areas</div>
+<div class="value" id="areaCount">—</div>
+</div>
+
+<div class="card">
+<div class="key">Entities</div>
+<div class="value" id="entityCount">—</div>
+</div>
+
 </div>
 
 </main>
@@ -432,6 +598,62 @@ function matches(name, words) {
   return words.some(word =>
     name.includes(word)
   );
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function friendlyState(value) {
+  if (!value) {
+    return 'Unknown';
+  }
+
+  return String(value)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, letter =>
+      letter.toUpperCase()
+    );
+}
+
+function stateName(state) {
+  return (
+    state?.attributes?.friendly_name ||
+    state?.entity_id ||
+    'Unknown'
+  );
+}
+
+function stateMatches(state, terms) {
+  const text = (
+    state?.entity_id + ' ' +
+    stateName(state)
+  ).toLowerCase();
+
+  return terms.some(term =>
+    text.includes(term)
+  );
+}
+
+function renderStatusCard(card) {
+  const wide = card.wide ? ' wide' : '';
+  const tone = card.tone || '';
+
+  return `
+    <div class="card status-card${wide}">
+      <div class="status-topline">
+        <div class="key">${escapeHtml(card.label)}</div>
+        <span class="status-dot ${escapeHtml(tone)}"></span>
+      </div>
+      <div class="status-value">${escapeHtml(card.value)}</div>
+      <div class="status-note">${escapeHtml(card.note)}</div>
+    </div>
+  `;
 }
 
 fetch(base + '/api/bootstrap')
@@ -604,11 +826,269 @@ fetch(base + '/api/bootstrap')
       `<span class="pill">${platform}</span>`
     ).join('');
 
+  function renderHomeStatus() {
+    const lockStates = states.filter(state =>
+      state.entity_id.startsWith('lock.')
+    );
+
+    const unlockedLocks = lockStates.filter(state =>
+      ![
+        'locked',
+        'unavailable',
+        'unknown'
+      ].includes(state.state)
+    );
+
+    const doorStates = states.filter(state =>
+      (
+        state.entity_id.startsWith('binary_sensor.') &&
+        [
+          'door',
+          'garage_door',
+          'opening'
+        ].includes(state.attributes?.device_class)
+      ) ||
+      state.entity_id.startsWith('cover.')
+    );
+
+    const openDoors = doorStates.filter(state =>
+      ['on', 'open', 'opening'].includes(state.state)
+    );
+
+    const garageState = states.find(state =>
+      stateMatches(state, ['garage']) &&
+      (
+        state.entity_id.startsWith('cover.') ||
+        state.attributes?.device_class === 'garage_door'
+      )
+    );
+
+    const alarmState = states.find(state =>
+      state.entity_id.startsWith('alarm_control_panel.')
+    );
+
+    const thermostatState =
+      stateMap.get('climate.thermostat');
+
+    const thermostatAttrs =
+      thermostatState?.attributes || {};
+
+    const thermostatUnit =
+      thermostatAttrs.temperature_unit || '°';
+
+    const thermostatPreset =
+      thermostatAttrs.preset_mode;
+
+    const thermostatFan =
+      thermostatAttrs.fan_mode;
+
+    const bedroomTemperature =
+      stateMap.get(
+        'sensor.main_bedroom_main_bedroom_echo_dot_main_bedroom_temperature'
+      );
+
+    const climateParts = [];
+
+    if (
+      typeof thermostatAttrs.current_temperature !== 'undefined'
+    ) {
+      climateParts.push(
+        'House ' +
+        thermostatAttrs.current_temperature +
+        (thermostatAttrs.temperature_unit || '°')
+      );
+    }
+
+    if (bedroomTemperature?.state) {
+      climateParts.push(
+        'Bedroom ' +
+        bedroomTemperature.state +
+        (
+          bedroomTemperature.attributes
+            ?.unit_of_measurement || '°'
+        )
+      );
+    }
+
+    const onlineCameras = cameras.filter(entity => {
+      const state = stateFor(entity.entity_id);
+      return ![
+        'unavailable',
+        'unknown'
+      ].includes(state?.state);
+    });
+
+    const networkStates = states.filter(state =>
+      stateMatches(
+        state,
+        [
+          'unifi',
+          'ucg',
+          'wan',
+          'internet',
+          'wifi',
+          'wi-fi',
+          'access point'
+        ]
+      )
+    );
+
+    document.getElementById('network').textContent =
+      networkStates.length
+        ? plural(networkStates.length, 'network signal') + ' available'
+        : 'No network telemetry yet';
+
+    const wanStates = networkStates.filter(state =>
+      stateMatches(
+        state,
+        ['wan', 'internet']
+      )
+    );
+
+    const apStates = networkStates.filter(state =>
+      stateMatches(
+        state,
+        ['access point', 'ap ', 'u6', 'u7', 'wifi', 'wi-fi']
+      )
+    );
+
+    const cards = [];
+
+    cards.push({
+      label: 'Doors',
+      value:
+        lockStates.length || doorStates.length
+          ? [
+              unlockedLocks.length
+                ? plural(unlockedLocks.length, 'lock') + ' unlocked'
+                : lockStates.length
+                  ? 'All locks secure'
+                  : null,
+              openDoors.length
+                ? plural(openDoors.length, 'door') + ' open'
+                : doorStates.length
+                  ? 'Doors closed'
+                  : null
+            ].filter(Boolean).join(' • ')
+          : 'No door data',
+      note:
+        unlockedLocks[0]
+          ? stateName(unlockedLocks[0])
+          : openDoors[0]
+            ? stateName(openDoors[0])
+            : 'Derived from lock, door, and cover entities.',
+      tone:
+        unlockedLocks.length || openDoors.length
+          ? 'warn'
+          : lockStates.length || doorStates.length
+            ? 'good'
+            : '',
+      wide: true
+    });
+
+    cards.push({
+      label: 'Cameras',
+      value:
+        cameras.length
+          ? plural(onlineCameras.length, 'camera') + ' online'
+          : 'No camera data',
+      note:
+        cameras.length
+          ? plural(cameras.length, 'visible camera') +
+            ' after duplicate filtering.'
+          : 'No camera entities were discovered.',
+      tone:
+        cameras.length && onlineCameras.length === cameras.length
+          ? 'good'
+          : cameras.length
+            ? 'warn'
+            : ''
+    });
+
+    cards.push({
+      label: 'Climate',
+      value:
+        climateParts.length
+          ? climateParts.join(' • ')
+          : 'No temperature data',
+      note:
+        thermostatState
+          ? 'Whole-home thermostat is ' +
+            friendlyState(thermostatState.state) + '.'
+          : 'Thermostat data is unavailable.',
+      tone:
+        climateParts.length
+          ? 'good'
+          : ''
+    });
+
+    cards.push({
+      label: 'Garage',
+      value:
+        garageState
+          ? friendlyState(garageState.state)
+          : 'No garage state',
+      note:
+        garageState
+          ? stateName(garageState)
+          : 'Garage entities were not identified.',
+      tone:
+        garageState?.state === 'closed' ||
+        garageState?.state === 'off'
+          ? 'good'
+          : garageState
+            ? 'warn'
+            : ''
+    });
+
+    cards.push({
+      label: 'Security',
+      value:
+        alarmState
+          ? friendlyState(alarmState.state)
+          : 'No alarm data',
+      note:
+        alarmState
+          ? stateName(alarmState)
+          : 'No alarm panel entity was discovered.',
+      tone:
+        alarmState?.state === 'armed_home' ||
+        alarmState?.state === 'armed_away'
+          ? 'active'
+          : alarmState?.state === 'disarmed'
+            ? 'good'
+            : ''
+    });
+
+    cards.push({
+      label: 'Network',
+      value:
+        networkStates.length
+          ? plural(networkStates.length, 'signal') + ' available'
+          : 'No network telemetry',
+      note:
+        networkStates.length
+          ? plural(wanStates.length, 'WAN signal') +
+            ' • ' +
+            plural(apStates.length, 'Wi-Fi/AP signal')
+          : 'A dedicated Network page can be added next.',
+      tone:
+        networkStates.length
+          ? 'active'
+          : ''
+    });
+
+    document.getElementById('homeStatus').innerHTML =
+      cards.map(renderStatusCard).join('');
+  }
+
+  renderHomeStatus();
+
   document.getElementById('title').textContent =
     config.location_name || 'Home';
 
   document.getElementById('subtitle').textContent =
-    `Home Assistant ${config.version || ''} • read-only`;
+    `Home Assistant ${config.version || ''} • live household controls`;
 
   document.getElementById('ha').innerHTML =
     '<span class="good">Linked</span>';
@@ -621,8 +1101,8 @@ fetch(base + '/api/bootstrap')
 
   document.getElementById('banner').innerHTML =
     '<span class="good">● Registry linked</span> — ' +
-    'Home Control is now using your real Areas, devices and entities. ' +
-    'Controls remain disabled.';
+    'Home Control is using real Areas, devices, and entities. ' +
+    'Service actions remain server allowlisted.';
 
   const areaRows = [...areas]
     .sort((a, b) =>
@@ -1175,6 +1655,14 @@ fetch(base + '/api/bootstrap')
     loadCameraActivity();
 
     document.getElementById(
+      'networkDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
       'lightingDetail'
     ).style.display = 'none';
 
@@ -1195,6 +1683,241 @@ fetch(base + '/api/bootstrap')
   window.closeCameras = function() {
     document.getElementById(
       'cameraDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+
+  function networkItemTone(item) {
+    const state = String(item.state || '').toLowerCase();
+
+    if ([
+      'unavailable',
+      'unknown',
+      'offline',
+      'off',
+      'problem'
+    ].includes(state)) {
+      return 'warn';
+    }
+
+    if ([
+      'online',
+      'on',
+      'connected',
+      'ok',
+      'up'
+    ].includes(state)) {
+      return 'good';
+    }
+
+    return '';
+  }
+
+
+  function networkGroupHtml(title, items, emptyText) {
+    if (!items.length) {
+      return `
+        <div style="margin-bottom:18px">
+          <div class="key" style="margin:0 0 8px 2px">
+            ${title}
+          </div>
+          <div class="banner" style="margin:0">
+            ${emptyText}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="margin-bottom:22px">
+        <div class="key" style="margin:0 0 8px 2px">
+          ${title}
+        </div>
+        <div class="area-list">
+          ${items.map(item => {
+            const attrs = item.attributes || {};
+            const detail = [
+              item.platform,
+              attrs.device_class,
+              attrs.unit_of_measurement
+            ].filter(Boolean).join(' • ');
+
+            return `
+              <div class="row">
+                <span>
+                  <strong>${escapeHtml(item.name)}</strong><br>
+                  <span class="muted">
+                    ${escapeHtml(detail || 'Measured Home Assistant signal')}
+                  </span>
+                </span>
+                <b class="${networkItemTone(item)}">
+                  ${escapeHtml(friendlyState(item.state))}
+                </b>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+
+  function networkRecommendationHtml(data) {
+    const wan = data.wan || [];
+    const wifi = data.wifi || [];
+    const clients = data.clients || [];
+    const count = data.count || 0;
+
+    const facts = [
+      `${plural(wan.length, 'WAN signal')}`,
+      `${plural(wifi.length, 'Wi-Fi infrastructure signal')}`,
+      `${plural(clients.length, 'client signal')}`
+    ];
+
+    const issues = [
+      ...wan,
+      ...wifi,
+      ...clients
+    ].filter(item =>
+      networkItemTone(item) === 'warn'
+    );
+
+    const conclusion =
+      issues.length
+        ? `${plural(issues.length, 'signal')} may need attention.`
+        : count
+          ? 'No obvious network issue from exposed telemetry.'
+          : 'No structured network telemetry is exposed yet.';
+
+    const recommendation =
+      count
+        ? 'Review unavailable or offline signals before changing UniFi settings.'
+        : 'Expose UniFi WAN, AP, and client sensors in Home Assistant to enable diagnostics.';
+
+    return `
+      <div class="card" style="margin-bottom:20px">
+        <div class="key">Diagnostic assistant</div>
+        <div class="status-value" style="font-size:16px">
+          ${conclusion}
+        </div>
+        <div class="status-note">
+          Facts: ${facts.join(' • ')}
+        </div>
+        <div class="status-note">
+          Recommendation: ${recommendation}
+        </div>
+        <div class="status-note">
+          Confidence: ${count ? 'medium' : 'low'} • Risk: none, read-only
+        </div>
+      </div>
+    `;
+  }
+
+
+  window.openNetwork = async function() {
+    const panel =
+      document.getElementById('networkDetailList');
+
+    document.getElementById(
+      'networkDetail'
+    ).style.display = 'block';
+
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'lightingDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'networkSummary'
+    ).textContent = 'Loading network telemetry…';
+
+    panel.innerHTML = '';
+
+    try {
+      const response = await fetch(
+        base + '/api/network-signals'
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Network request failed: ' +
+          response.status
+        );
+      }
+
+      const data = await response.json();
+
+      document.getElementById(
+        'networkSummary'
+      ).textContent =
+        `${plural(data.count || 0, 'network signal')} discovered`;
+
+      panel.innerHTML = `
+        ${networkRecommendationHtml(data)}
+        ${networkGroupHtml(
+          'Internet / WAN',
+          data.wan || [],
+          'No WAN or internet health sensors were discovered.'
+        )}
+        ${networkGroupHtml(
+          'Wi-Fi infrastructure',
+          data.wifi || [],
+          'No access point or radio health sensors were discovered.'
+        )}
+        ${networkGroupHtml(
+          'Clients',
+          data.clients || [],
+          'No client signal or roaming telemetry was discovered.'
+        )}
+        ${networkGroupHtml(
+          'Other network telemetry',
+          data.other || [],
+          'No additional network telemetry was discovered.'
+        )}
+      `;
+
+      window.scrollTo({
+        top:
+          document.getElementById(
+            'networkDetail'
+          ).offsetTop - 20,
+        behavior: 'smooth'
+      });
+
+    } catch (error) {
+      document.getElementById(
+        'networkSummary'
+      ).textContent =
+        'Network telemetry unavailable';
+
+      panel.innerHTML = `
+        <div class="banner">
+          ${escapeHtml(error.message)}
+        </div>
+      `;
+    }
+  };
+
+
+  window.closeNetwork = function() {
+    document.getElementById(
+      'networkDetail'
     ).style.display = 'none';
 
     window.scrollTo({
@@ -1418,6 +2141,18 @@ fetch(base + '/api/bootstrap')
     ).style.display = 'block';
 
     document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'networkDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
       'roomDetail'
     ).style.display = 'none';
 
@@ -1455,7 +2190,17 @@ fetch(base + '/api/bootstrap')
   }
 
 
-  window.toggleLight = async function(entityId) {
+  function refreshLightView(roomKey) {
+    if (roomKey) {
+      openRoom(roomKey);
+      return;
+    }
+
+    openLighting();
+  }
+
+
+  window.toggleLight = async function(entityId, roomKey = '') {
     const current =
       stateMap.get(entityId);
 
@@ -1493,7 +2238,7 @@ fetch(base + '/api/bootstrap')
       }
 
       await refreshStates();
-      openLighting();
+      refreshLightView(roomKey);
 
     } catch (error) {
       alert(
@@ -1505,7 +2250,7 @@ fetch(base + '/api/bootstrap')
 
 
   window.setLightBrightness =
-    async function(entityId, value) {
+    async function(entityId, value, roomKey = '') {
 
     try {
       const response = await fetch(
@@ -1533,11 +2278,99 @@ fetch(base + '/api/bootstrap')
       }
 
       await refreshStates();
-      openLighting();
+      refreshLightView(roomKey);
 
     } catch (error) {
       alert(
         'Could not change brightness: ' +
+        error.message
+      );
+    }
+  };
+
+
+  window.setLightColorTemperature =
+    async function(entityId, value, roomKey = '') {
+
+    try {
+      const response = await fetch(
+        base + '/api/service',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+          body: JSON.stringify({
+            domain: 'light',
+            service: 'turn_on',
+            entity_id: entityId,
+            color_temp_kelvin: Number(value)
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Color temperature failed: ' +
+          response.status
+        );
+      }
+
+      await refreshStates();
+      refreshLightView(roomKey);
+
+    } catch (error) {
+      alert(
+        'Could not change color temperature: ' +
+        error.message
+      );
+    }
+  };
+
+
+  window.setLightColorPreset =
+    async function(
+      entityId,
+      hue,
+      saturation,
+      roomKey = ''
+    ) {
+
+    try {
+      const response = await fetch(
+        base + '/api/service',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json'
+          },
+          body: JSON.stringify({
+            domain: 'light',
+            service: 'turn_on',
+            entity_id: entityId,
+            hs_color: [
+              Number(hue),
+              Number(saturation)
+            ]
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw Error(
+          'Color failed: ' +
+          response.status
+        );
+      }
+
+      await refreshStates();
+      refreshLightView(roomKey);
+
+    } catch (error) {
+      alert(
+        'Could not change color: ' +
         error.message
       );
     }
@@ -1569,6 +2402,97 @@ fetch(base + '/api/bootstrap')
     loft: 'Loft',
     garage: 'Garage'
   };
+
+  const mediaFeatures = {
+    pause: 1,
+    volumeSet: 4,
+    volumeMute: 8,
+    previousTrack: 16,
+    nextTrack: 32,
+    selectSource: 2048,
+    play: 16384,
+    shuffleSet: 32768,
+    repeatSet: 262144
+  };
+
+
+  function mediaEntityFor(entityId) {
+    return enabledEntities.find(entity =>
+      entity.entity_id === entityId
+    );
+  }
+
+
+  function mediaStateFor(entityId) {
+    return stateMap.get(entityId) || {};
+  }
+
+
+  function mediaAttrsFor(entityId) {
+    return mediaStateFor(entityId).attributes || {};
+  }
+
+
+  function mediaSupports(entityId, feature) {
+    const supported =
+      mediaAttrsFor(entityId).supported_features;
+
+    return (
+      typeof supported === 'number' &&
+      Boolean(supported & feature)
+    );
+  }
+
+
+  function mediaDisplayName(entityId) {
+    const entity = mediaEntityFor(entityId);
+    const state = mediaStateFor(entityId);
+
+    return (
+      entity?.name ||
+      entity?.original_name ||
+      state?.attributes?.friendly_name ||
+      entityId
+    );
+  }
+
+
+  function mediaSummaryParts(attrs, state) {
+    return [
+      state?.state,
+      attrs.source,
+      attrs.media_title,
+      attrs.media_artist
+    ].filter(Boolean);
+  }
+
+
+  function mediaProgressText(attrs) {
+    const duration = attrs.media_duration;
+    const position = attrs.media_position;
+
+    if (
+      typeof duration !== 'number' ||
+      typeof position !== 'number' ||
+      duration <= 0
+    ) {
+      return '';
+    }
+
+    const formatSeconds = value => {
+      const safe = Math.max(0, Math.floor(value));
+      const minutes = Math.floor(safe / 60);
+      const seconds = String(safe % 60).padStart(2, '0');
+      return `${minutes}:${seconds}`;
+    };
+
+    return (
+      formatSeconds(position) +
+      ' / ' +
+      formatSeconds(duration)
+    );
+  }
+
 
   window.openRoom = function(key) {
     const ids = window.favoriteAreaIds[key] || [];
@@ -1705,14 +2629,133 @@ fetch(base + '/api/bootstrap')
       return an.localeCompare(bn);
     });
 
-    function renderLightControl(entity, prominent = false) {
+    function lightName(entity) {
       const state = stateMap.get(entity.entity_id);
 
-      const name =
+      return (
         entity.name ||
         entity.original_name ||
         state?.attributes?.friendly_name ||
-        entity.entity_id;
+        entity.entity_id
+      );
+    }
+
+    function isBedroomPrimaryLamp(entity) {
+      const name = lightName(entity).toLowerCase();
+
+      return (
+        name.includes("dwayne's lamp") ||
+        name.includes("dwaynes lamp") ||
+        name.includes("marlana's lamp") ||
+        name.includes("marlanas lamp")
+      );
+    }
+
+    function supportedColorModes(state) {
+      return state?.attributes?.supported_color_modes || [];
+    }
+
+    function supportsBrightness(state) {
+      return (
+        supportedColorModes(state).some(mode =>
+          mode !== 'onoff'
+        ) ||
+        typeof state?.attributes?.brightness === 'number'
+      );
+    }
+
+    function supportsColorTemperature(state) {
+      return supportedColorModes(state).includes('color_temp');
+    }
+
+    function supportsColor(state) {
+      return supportedColorModes(state).some(mode =>
+        [
+          'hs',
+          'rgb',
+          'rgbw',
+          'rgbww',
+          'xy'
+        ].includes(mode)
+      );
+    }
+
+    function lightColorControls(entity, state, roomKey) {
+      const attrs = state?.attributes || {};
+      const controls = [];
+
+      if (supportsColorTemperature(state)) {
+        const minKelvin =
+          attrs.min_color_temp_kelvin || 2200;
+
+        const maxKelvin =
+          attrs.max_color_temp_kelvin || 6500;
+
+        const currentKelvin =
+          attrs.color_temp_kelvin ||
+          Math.round((minKelvin + maxKelvin) / 2);
+
+        controls.push(`
+          <div class="control-label">Warm / cool</div>
+          <input
+            type="range"
+            min="${minKelvin}"
+            max="${maxKelvin}"
+            value="${currentKelvin}"
+            onchange="setLightColorTemperature(
+              '${entity.entity_id}',
+              this.value,
+              '${roomKey}'
+            )"
+            style="width:100%"
+          >
+        `);
+      }
+
+      if (supportsColor(state)) {
+        const presets = [
+          ['Warm', '#ffc46b', 38, 74],
+          ['Calm', '#7cc7ff', 205, 52],
+          ['Focus', '#ffffff', 45, 8],
+          ['Night', '#8f6bff', 255, 54],
+          ['Red', '#ff6b6b', 0, 72]
+        ];
+
+        controls.push(`
+          <div class="control-label">Color</div>
+          <div class="swatch-row">
+            ${presets.map(([label, color, hue, saturation]) => `
+              <button
+                class="swatch"
+                aria-label="${label}"
+                title="${label}"
+                onclick="setLightColorPreset(
+                  '${entity.entity_id}',
+                  ${hue},
+                  ${saturation},
+                  '${roomKey}'
+                )"
+                style="background:${color}"
+              ></button>
+            `).join('')}
+          </div>
+        `);
+      }
+
+      return controls.join('');
+    }
+
+    function renderLightControl(entity, options = {}) {
+      const prominent = options.prominent === true;
+      const label = options.label || (
+        prominent
+          ? 'Room control'
+          : 'Individual light'
+      );
+      const roomKey = options.roomKey || '';
+      const state = stateMap.get(entity.entity_id);
+
+      const name = lightName(entity);
 
       const brightness =
         state?.attributes?.brightness;
@@ -1729,11 +2772,8 @@ fetch(base + '/api/bootstrap')
             ? 'Off'
             : state?.state || '—';
 
-      const supportsBrightness =
-        state?.attributes?.supported_color_modes?.some(
-          mode => mode !== 'onoff'
-        ) ||
-        typeof brightness === 'number';
+      const colorControls =
+        lightColorControls(entity, state, roomKey);
 
       return `
         <div style="
@@ -1764,11 +2804,11 @@ fetch(base + '/api/bootstrap')
                   letter-spacing:.11em;
                   text-transform:uppercase;
                 ">
-                  Room control
+                  ${label}
                 </div>
               ` : `
                 <div class="key" style="margin-bottom:3px">
-                  Individual light
+                  ${label}
                 </div>
               `}
               <strong style="${prominent ? 'font-size:17px;' : 'font-size:14px;'}">
@@ -1787,7 +2827,7 @@ fetch(base + '/api/bootstrap')
               </span>
 
               <button
-                onclick="toggleLight('${entity.entity_id}')"
+                onclick="toggleLight('${entity.entity_id}', '${roomKey}')"
                 style="
                   background:${prominent ? 'var(--text)' : 'var(--card2)'};
                   color:${prominent ? 'var(--bg)' : 'var(--text)'};
@@ -1803,7 +2843,7 @@ fetch(base + '/api/bootstrap')
             </span>
           </div>
 
-          ${supportsBrightness ? `
+          ${supportsBrightness(state) ? `
             <div style="margin-top:10px">
               <input
                 type="range"
@@ -1812,12 +2852,15 @@ fetch(base + '/api/bootstrap')
                 value="${brightnessPct ?? 100}"
                 onchange="setLightBrightness(
                   '${entity.entity_id}',
-                  this.value
+                  this.value,
+                  '${roomKey}'
                 )"
                 style="width:100%"
               >
             </div>
           ` : ''}
+
+          ${colorControls}
         </div>
       `;
     }
@@ -1830,19 +2873,125 @@ fetch(base + '/api/bootstrap')
         !isLightGroup(entity)
       );
 
+    const primaryBedroomLights =
+      key === 'bedroom'
+        ? individualLights.filter(isBedroomPrimaryLamp)
+        : [];
+
+    const secondaryBedroomLights =
+      key === 'bedroom'
+        ? individualLights.filter(entity =>
+            !isBedroomPrimaryLamp(entity)
+          )
+        : [];
+
     const groupRows =
       groupLights
         .map(entity =>
-          renderLightControl(entity, true)
+          renderLightControl(entity, {
+            prominent: key !== 'bedroom',
+            label:
+              key === 'bedroom'
+                ? 'Secondary group action'
+                : 'Room control',
+            roomKey: key
+          })
+        )
+        .join('');
+
+    const primaryBedroomRows =
+      primaryBedroomLights
+        .map(entity =>
+          renderLightControl(entity, {
+            prominent: true,
+            label: 'Primary lamp',
+            roomKey: key
+          })
+        )
+        .join('');
+
+    const secondaryBedroomRows =
+      secondaryBedroomLights
+        .map(entity =>
+          renderLightControl(entity, {
+            prominent: false,
+            label: 'Other light',
+            roomKey: key
+          })
         )
         .join('');
 
     const individualRows =
       individualLights
         .map(entity =>
-          renderLightControl(entity, false)
+          renderLightControl(entity, {
+            prominent: false,
+            label: 'Individual light',
+            roomKey: key
+          })
         )
         .join('');
+
+    const roomLightRows =
+      key === 'bedroom'
+        ? `
+          ${primaryBedroomRows ? `
+            <div class="key" style="margin:0 0 8px 2px">
+              Primary lamps
+            </div>
+            <div style="margin-bottom:12px">
+              ${primaryBedroomRows}
+            </div>
+          ` : ''}
+
+          ${groupRows ? `
+            <div class="key" style="margin:0 0 8px 2px">
+              Group action
+            </div>
+            <div class="area-list" style="margin-bottom:20px">
+              ${groupRows}
+            </div>
+          ` : ''}
+
+          ${secondaryBedroomRows ? `
+            <details style="margin-bottom:20px">
+              <summary class="key" style="
+                min-height:44px;
+                display:flex;
+                align-items:center;
+                cursor:pointer;
+              ">
+                Other individual lights
+              </summary>
+              <div class="area-list">
+                ${secondaryBedroomRows}
+              </div>
+            </details>
+          ` : ''}
+        `
+        : `
+          ${groupRows ? `
+            <div style="margin-bottom:12px">
+              ${groupRows}
+            </div>
+          ` : ''}
+
+          ${individualRows ? `
+            <details style="margin-bottom:20px">
+              <summary class="key" style="
+                min-height:44px;
+                display:flex;
+                align-items:center;
+                cursor:pointer;
+              ">
+                Individual lights
+              </summary>
+              <div class="area-list">
+                ${individualRows}
+              </div>
+            </details>
+          ` : ''}
+        `;
 
     const mediaEntities = nonLights.filter(entity =>
       entity.entity_id.startsWith('media_player.')
@@ -1862,20 +3011,17 @@ fetch(base + '/api/bootstrap')
       const state =
         stateMap.get(entity.entity_id);
 
+      const attrs =
+        state?.attributes || {};
+
       const name =
-        entity.name ||
-        entity.original_name ||
-        state?.attributes?.friendly_name ||
-        entity.entity_id;
+        mediaDisplayName(entity.entity_id);
 
-      const source =
-        state?.attributes?.source;
-
-      const title =
-        state?.attributes?.media_title;
+      const artwork =
+        attrs.entity_picture;
 
       const volume =
-        state?.attributes?.volume_level;
+        attrs.volume_level;
 
       const volumePct =
         typeof volume === 'number'
@@ -1883,108 +3029,74 @@ fetch(base + '/api/bootstrap')
           : null;
 
       const muted =
-        state?.attributes?.is_volume_muted === true;
+        attrs.is_volume_muted === true;
 
-      const details = [
-        state?.state,
-        source,
-        title
-      ].filter(Boolean);
+      const progress =
+        mediaProgressText(attrs);
+
+      const details =
+        mediaSummaryParts(attrs, state);
 
       return `
-        <div style="
-          padding:13px 0;
-          border-bottom:1px solid var(--line);
-        ">
-          <div>
-            <strong>${name}</strong>
-          </div>
-
-          <div class="muted"
-               style="font-size:12px;margin-top:4px">
-            ${details.join(' • ') || 'Idle'}
-          </div>
-
+        <button
+          onclick="openMediaDetail(
+            '${entity.entity_id}',
+            '${key}'
+          )"
+          style="
+            width:100%;
+            padding:14px 0;
+            border:0;
+            border-bottom:1px solid var(--line);
+            background:transparent;
+            color:inherit;
+            font:inherit;
+            text-align:left;
+          ">
           <div style="
             display:flex;
-            gap:8px;
-            flex-wrap:wrap;
-            margin-top:10px;
+            gap:12px;
             align-items:center;
           ">
-            <button
-              onclick="mediaPlayPause('${entity.entity_id}')"
-              style="
-                background:var(--card2);
-                color:var(--text);
-                border:1px solid var(--line);
-                border-radius:11px;
-                padding:7px 10px;
-                font:inherit;
-                font-size:12px;
-                font-weight:700;
-              ">
-              Play/Pause
-            </button>
-
-            ${volumePct !== null ? `
-              <button
-                onclick="mediaVolume(
-                  '${entity.entity_id}',
-                  ${Math.max(0, volumePct - 5)}
-                )"
+            ${artwork ? `
+              <img
+                src="${base}/api/media-artwork/${entity.entity_id}"
+                alt=""
+                loading="lazy"
                 style="
+                  width:54px;
+                  height:54px;
+                  border-radius:12px;
+                  object-fit:cover;
                   background:var(--card2);
-                  color:var(--text);
-                  border:1px solid var(--line);
-                  border-radius:11px;
-                  padding:7px 10px;
-                  font:inherit;
-                ">
-                −
-              </button>
-
-              <span class="muted"
-                    style="font-size:12px">
-                Vol ${volumePct}%
-              </span>
-
-              <button
-                onclick="mediaVolume(
-                  '${entity.entity_id}',
-                  ${Math.min(100, volumePct + 5)}
-                )"
-                style="
-                  background:var(--card2);
-                  color:var(--text);
-                  border:1px solid var(--line);
-                  border-radius:11px;
-                  padding:7px 10px;
-                  font:inherit;
-                ">
-                +
-              </button>
-
-              <button
-                onclick="mediaMute(
-                  '${entity.entity_id}',
-                  ${!muted}
-                )"
-                style="
-                  background:var(--card2);
-                  color:var(--text);
-                  border:1px solid var(--line);
-                  border-radius:11px;
-                  padding:7px 10px;
-                  font:inherit;
-                  font-size:12px;
-                  font-weight:700;
-                ">
-                ${muted ? 'Unmute' : 'Mute'}
-              </button>
+                  flex:0 0 auto;
+                "
+                onerror="this.style.display='none'"
+              >
             ` : ''}
+
+            <div style="min-width:0;flex:1">
+              <strong>${escapeHtml(name)}</strong>
+
+              <div class="muted"
+                   style="font-size:12px;margin-top:4px">
+                ${escapeHtml(details.join(' • ') || 'Idle')}
+                ${attrs.media_album_name ? `
+                  <br>${escapeHtml(attrs.media_album_name)}
+                ` : ''}
+                ${volumePct !== null ? `
+                  <br>Volume ${volumePct}%${muted ? ' • Muted' : ''}
+                ` : ''}
+                ${progress ? `<br>${escapeHtml(progress)}` : ''}
+              </div>
+            </div>
+
+            <span class="muted"
+                  style="font-size:18px">
+              ›
+            </span>
           </div>
-        </div>
+        </button>
       `;
     }).join('');
 
@@ -2053,51 +3165,6 @@ fetch(base + '/api/bootstrap')
       stateMap.get(entity.entity_id)?.state === 'on'
     ).length;
 
-    const temperatureAudit = all
-      .map(entity => {
-        const state = stateMap.get(entity.entity_id);
-        const name =
-          entity.name ||
-          entity.original_name ||
-          state?.attributes?.friendly_name ||
-          entity.entity_id;
-
-        const deviceClass =
-          state?.attributes?.device_class || '';
-
-        return {
-          entity_id: entity.entity_id,
-          name,
-          state: state?.state,
-          unit:
-            state?.attributes?.unit_of_measurement,
-          device_class: deviceClass
-        };
-      })
-      .filter(item => {
-        const text = (
-          item.entity_id + ' ' + item.name
-        ).toLowerCase();
-
-        return (
-          item.device_class === 'temperature' ||
-          text.includes('temperature') ||
-          text.includes(' temp') ||
-          text.includes('thermostat') ||
-          text.includes('hvac')
-        );
-      });
-
-    const auditDomains = {};
-
-    all.forEach(entity => {
-      const domain =
-        entity.entity_id.split('.')[0];
-
-      auditDomains[domain] =
-        (auditDomains[domain] || 0) + 1;
-    });
-
     const unavailableCount =
       all.filter(entity => {
         const state =
@@ -2117,6 +3184,28 @@ fetch(base + '/api/bootstrap')
       )
       .filter(Boolean);
 
+    const activeCount =
+      all.filter(entity => {
+        const state =
+          stateMap.get(entity.entity_id);
+
+        return state && [
+          'on',
+          'open',
+          'opening',
+          'playing',
+          'home',
+          'unlocked'
+        ].includes(state.state);
+      }).length;
+
+    const visibleAreaSummary =
+      key === 'bedroom'
+        ? 'Main Bedroom includes 2 mapped Home Assistant areas.'
+        : areaNames.length
+          ? areaNames.join(' + ')
+          : 'No mapped Home Assistant area.';
+
 
     document.getElementById(
       'roomDetailTitle'
@@ -2125,62 +3214,13 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'roomDetailList'
     ).innerHTML = `
-      ${temperatureAudit.length ? `
-        <div class="banner" style="margin:0 0 12px 0">
-          <strong style="display:none">Temperature audit</strong>
-
-          <div style="
-            margin-top:8px;
-            display:flex;
-            flex-direction:column;
-            gap:6px;
-          ">
-            ${temperatureAudit.map(item => `
-              <div style="
-                display:flex;
-                justify-content:space-between;
-                gap:12px;
-                font-size:11px;
-              ">
-                <span>
-                  ${item.name}<br>
-                  <span class="muted">
-                    ${item.entity_id}
-                  </span>
-                </span>
-
-                <span style="text-align:right">
-                  ${item.state ?? '—'}
-                  ${item.unit ?? ''}
-                </span>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
       <div class="banner" style="margin:0 0 12px 0">
-        <strong>${areaNames.join(' + ')}</strong><br>
+        <strong>${title}</strong><br>
         <span class="muted" style="font-size:11px">
-          ${all.length} entities •
-          ${unavailableCount} unavailable
+          ${visibleAreaSummary}
+          ${activeCount ? ` ${activeCount} active.` : ''}
+          ${unavailableCount ? ` ${unavailableCount} unavailable.` : ''}
         </span>
-
-        <div style="
-          margin-top:8px;
-          display:flex;
-          gap:5px;
-          flex-wrap:wrap;
-        ">
-          ${Object.entries(auditDomains)
-            .sort((a,b) => b[1] - a[1])
-            .map(([domain,count]) => `
-              <span class="pill">
-                ${domain}: ${count}
-              </span>
-            `)
-            .join('')}
-        </div>
       </div>
 
       ${key === 'bedroom' ? `
@@ -2203,7 +3243,7 @@ fetch(base + '/api/bootstrap')
               <div style="
                 font-size:34px;
                 font-weight:800;
-                letter-spacing:-.04em;
+                letter-spacing:0;
                 margin-top:3px;
               ">
                 ${bedroomTempValue ?? '—'}${bedroomTempUnit}
@@ -2216,7 +3256,7 @@ fetch(base + '/api/bootstrap')
             </div>
 
             <div style="text-align:right">
-              <div class="key">Thermostat</div>
+              <div class="key">Whole-home thermostat</div>
 
               <div style="
                 font-size:17px;
@@ -2234,6 +3274,8 @@ fetch(base + '/api/bootstrap')
                      text-transform:capitalize;
                    ">
                 ${thermostatAction}
+                ${thermostatPreset ? ` • ${thermostatPreset}` : ''}
+                ${thermostatFan ? ` • Fan ${thermostatFan}` : ''}
               </div>
             </div>
           </div>
@@ -2251,7 +3293,7 @@ fetch(base + '/api/bootstrap')
             ">
               <div class="key">House temp</div>
               <strong style="display:block;margin-top:4px">
-                ${thermostatCurrent ?? '—'}°
+                ${thermostatCurrent ?? '—'}${thermostatUnit}
               </strong>
             </div>
 
@@ -2264,12 +3306,12 @@ fetch(base + '/api/bootstrap')
               <strong style="display:block;margin-top:4px">
                 ${
                   thermostatTarget !== undefined
-                    ? thermostatTarget + '°'
+                    ? thermostatTarget + thermostatUnit
                     : (
                         thermostatLow !== undefined &&
                         thermostatHigh !== undefined
                       )
-                      ? thermostatLow + '–' + thermostatHigh + '°'
+                      ? thermostatLow + '-' + thermostatHigh + thermostatUnit
                       : '—'
                 }
               </strong>
@@ -2304,23 +3346,7 @@ fetch(base + '/api/bootstrap')
           Room lights
         </div>
 
-        ${groupRows ? `
-          <div style="margin-bottom:12px">
-            ${groupRows}
-          </div>
-        ` : ''}
-
-        ${individualRows ? `
-          <div class="key"
-               style="margin:0 0 6px 2px">
-            Individual lights
-          </div>
-
-          <div class="area-list"
-               style="margin-bottom:20px">
-            ${individualRows}
-          </div>
-        ` : ''}
+        ${roomLightRows}
       ` : ''}
 
       ${mediaRows ? `
@@ -2354,6 +3380,18 @@ fetch(base + '/api/bootstrap')
     document.getElementById(
       'roomDetail'
     ).style.display = 'block';
+
+    document.getElementById(
+      'cameraDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'networkDetail'
+    ).style.display = 'none';
+
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
 
     document.getElementById(
       'lightingDetail'
@@ -2426,6 +3464,284 @@ fetch(base + '/api/bootstrap')
 
 
 
+  let activeMediaEntityId = null;
+  let activeMediaRoomKey = null;
+
+
+  function renderMediaDetail(entityId, roomKey) {
+    const attrs =
+      mediaAttrsFor(entityId);
+
+    const state =
+      mediaStateFor(entityId);
+
+    const name =
+      mediaDisplayName(entityId);
+
+    const volume =
+      attrs.volume_level;
+
+    const volumePct =
+      typeof volume === 'number'
+        ? Math.round(volume * 100)
+        : null;
+
+    const muted =
+      attrs.is_volume_muted === true;
+
+    const artwork =
+      attrs.entity_picture;
+
+    const progress =
+      mediaProgressText(attrs);
+
+    const summary =
+      mediaSummaryParts(attrs, state);
+
+    const sources =
+      Array.isArray(attrs.source_list)
+        ? attrs.source_list
+        : [];
+
+    const repeatModes = [
+      'off',
+      'all',
+      'one'
+    ];
+
+    document.getElementById(
+      'mediaDetailTitle'
+    ).textContent = name;
+
+    document.getElementById(
+      'mediaDetailList'
+    ).innerHTML = `
+      <div class="card" style="margin-bottom:18px">
+        <div style="
+          display:flex;
+          gap:14px;
+          align-items:center;
+        ">
+          ${artwork ? `
+            <img
+              src="${base}/api/media-artwork/${entityId}"
+              alt=""
+              loading="lazy"
+              style="
+                width:82px;
+                height:82px;
+                border-radius:14px;
+                object-fit:cover;
+                background:var(--card2);
+                flex:0 0 auto;
+              "
+              onerror="this.style.display='none'"
+            >
+          ` : ''}
+
+          <div style="min-width:0">
+            <div class="key">Now playing</div>
+            <div class="status-value" style="font-size:18px">
+              ${escapeHtml(attrs.media_title || friendlyState(state.state))}
+            </div>
+            <div class="status-note">
+              ${escapeHtml(
+                [
+                  attrs.media_artist,
+                  attrs.media_album_name,
+                  attrs.source
+                ].filter(Boolean).join(' • ') ||
+                summary.join(' • ') ||
+                'No media details exposed'
+              )}
+            </div>
+          </div>
+        </div>
+
+        ${progress ? `
+          <div class="status-note" style="margin-top:14px">
+            Progress: ${escapeHtml(progress)}
+          </div>
+        ` : ''}
+      </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="key">Playback</div>
+        <div class="button-row" style="margin-top:10px">
+          ${mediaSupports(entityId, mediaFeatures.previousTrack) ? `
+            <button
+              class="control-button"
+              onclick="mediaPrevious('${entityId}')">
+              Previous
+            </button>
+          ` : ''}
+
+          ${(mediaSupports(entityId, mediaFeatures.play) ||
+             mediaSupports(entityId, mediaFeatures.pause)) ? `
+            <button
+              class="control-button"
+              onclick="mediaPlayPause('${entityId}')">
+              Play/Pause
+            </button>
+          ` : ''}
+
+          ${mediaSupports(entityId, mediaFeatures.nextTrack) ? `
+            <button
+              class="control-button"
+              onclick="mediaNext('${entityId}')">
+              Next
+            </button>
+          ` : ''}
+        </div>
+      </div>
+
+      ${volumePct !== null ? `
+        <div class="card" style="margin-bottom:18px">
+          <div class="key">Volume</div>
+          <div class="button-row" style="margin-top:10px">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value="${volumePct}"
+              onchange="mediaVolume(
+                '${entityId}',
+                this.value
+              )"
+              style="flex:1;min-width:160px"
+            >
+            <span class="muted" style="font-size:12px">
+              ${volumePct}%
+            </span>
+            ${typeof attrs.is_volume_muted === 'boolean' ? `
+              <button
+                class="control-button"
+                onclick="mediaMute(
+                  '${entityId}',
+                  ${!muted}
+                )">
+                ${muted ? 'Unmute' : 'Mute'}
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      ` : ''}
+
+      ${(
+        sources.length &&
+        mediaSupports(entityId, mediaFeatures.selectSource)
+      ) ? `
+        <div class="card" style="margin-bottom:18px">
+          <div class="key">Source</div>
+          <select
+            class="control-select"
+            onchange="mediaSource(
+              '${entityId}',
+              this.value
+            )"
+            style="width:100%;margin-top:10px">
+            ${sources.map(source => `
+              <option
+                value="${escapeHtml(source)}"
+                ${source === attrs.source ? 'selected' : ''}>
+                ${escapeHtml(source)}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+      ` : ''}
+
+      ${(
+        (
+          typeof attrs.shuffle === 'boolean' &&
+          mediaSupports(entityId, mediaFeatures.shuffleSet)
+        ) ||
+        (
+          typeof attrs.repeat === 'string' &&
+          mediaSupports(entityId, mediaFeatures.repeatSet)
+        )
+      ) ? `
+        <div class="card" style="margin-bottom:18px">
+          <div class="key">Playback mode</div>
+          <div class="button-row" style="margin-top:10px">
+            ${(
+              typeof attrs.shuffle === 'boolean' &&
+              mediaSupports(entityId, mediaFeatures.shuffleSet)
+            ) ? `
+              <button
+                class="control-button"
+                onclick="mediaShuffle(
+                  '${entityId}',
+                  ${!attrs.shuffle}
+                )">
+                Shuffle ${attrs.shuffle ? 'On' : 'Off'}
+              </button>
+            ` : ''}
+
+            ${(
+              typeof attrs.repeat === 'string' &&
+              mediaSupports(entityId, mediaFeatures.repeatSet)
+            ) ? `
+              <select
+                class="control-select"
+                onchange="mediaRepeat(
+                  '${entityId}',
+                  this.value
+                )">
+                ${repeatModes.map(mode => `
+                  <option
+                    value="${mode}"
+                    ${mode === attrs.repeat ? 'selected' : ''}>
+                    Repeat ${mode}
+                  </option>
+                `).join('')}
+              </select>
+            ` : ''}
+          </div>
+        </div>
+      ` : ''}
+    `;
+
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'block';
+
+    document.getElementById(
+      'roomDetail'
+    ).style.display = 'none';
+
+    window.scrollTo({
+      top:
+        document.getElementById(
+          'mediaDetail'
+        ).offsetTop - 20,
+      behavior: 'smooth'
+    });
+  }
+
+
+  window.openMediaDetail = function(entityId, roomKey) {
+    activeMediaEntityId = entityId;
+    activeMediaRoomKey = roomKey;
+
+    renderMediaDetail(
+      entityId,
+      roomKey
+    );
+  };
+
+
+  window.closeMediaDetail = function() {
+    document.getElementById(
+      'mediaDetail'
+    ).style.display = 'none';
+
+    if (activeMediaRoomKey) {
+      openRoom(activeMediaRoomKey);
+    }
+  };
+
+
   async function callMediaService(
     entityId,
     service,
@@ -2455,6 +3771,13 @@ fetch(base + '/api/bootstrap')
     }
 
     await refreshStates();
+
+    if (activeMediaEntityId === entityId) {
+      renderMediaDetail(
+        entityId,
+        activeMediaRoomKey
+      );
+    }
   }
 
 
@@ -2465,6 +3788,36 @@ fetch(base + '/api/bootstrap')
       await callMediaService(
         entityId,
         'media_play_pause'
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaPrevious =
+    async function(entityId) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'media_previous_track'
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaNext =
+    async function(entityId) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'media_next_track'
       );
 
     } catch (error) {
@@ -2513,6 +3866,60 @@ fetch(base + '/api/bootstrap')
   };
 
 
+  window.mediaSource =
+    async function(entityId, source) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'select_source',
+        {
+          source
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaShuffle =
+    async function(entityId, shuffle) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'shuffle_set',
+        {
+          shuffle
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
+  window.mediaRepeat =
+    async function(entityId, repeat) {
+
+    try {
+      await callMediaService(
+        entityId,
+        'repeat_set',
+        {
+          repeat
+        }
+      );
+
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+
 
   window.closeRoom = function() {
     document.getElementById(
@@ -2531,6 +3938,15 @@ fetch(base + '/api/bootstrap')
 
   document.getElementById('title').textContent =
     'Connection issue';
+
+  document.getElementById('homeStatus').innerHTML =
+    renderStatusCard({
+      label: 'Home Assistant',
+      value: 'Unavailable',
+      note: error.message,
+      tone: 'warn',
+      wide: true
+    });
 
   document.getElementById('banner').innerHTML =
     '<span class="warn">● Error</span> ' +

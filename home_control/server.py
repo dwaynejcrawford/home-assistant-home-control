@@ -5,6 +5,7 @@ from pathlib import Path
 from aiohttp import ClientSession, ClientTimeout, web
 
 TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
+CORE = "http://supervisor/core"
 REST = "http://supervisor/core/api"
 WS = "ws://supervisor/core/websocket"
 WWW = Path("/www")
@@ -193,7 +194,12 @@ async def call_service(request):
                 "turn_off",
             },
             "media_player": {
+                "media_next_track",
+                "media_previous_track",
                 "media_play_pause",
+                "repeat_set",
+                "select_source",
+                "shuffle_set",
                 "volume_mute",
                 "volume_set",
             },
@@ -259,6 +265,56 @@ async def call_service(request):
 
             service_data["brightness_pct"] = brightness_pct
 
+        color_temp_kelvin = data.get("color_temp_kelvin")
+
+        if (
+            domain == "light"
+            and service == "turn_on"
+            and color_temp_kelvin is not None
+        ):
+            try:
+                color_temp_kelvin = int(color_temp_kelvin)
+            except (TypeError, ValueError):
+                return web.json_response(
+                    {"error": "Invalid color temperature"},
+                    status=400,
+                )
+
+            service_data["color_temp_kelvin"] = max(
+                1500,
+                min(9000, color_temp_kelvin)
+            )
+
+        hs_color = data.get("hs_color")
+
+        if (
+            domain == "light"
+            and service == "turn_on"
+            and hs_color is not None
+        ):
+            if (
+                not isinstance(hs_color, list)
+                or len(hs_color) != 2
+            ):
+                return web.json_response(
+                    {"error": "Invalid color"},
+                    status=400,
+                )
+
+            try:
+                hue = float(hs_color[0])
+                saturation = float(hs_color[1])
+            except (TypeError, ValueError):
+                return web.json_response(
+                    {"error": "Invalid color"},
+                    status=400,
+                )
+
+            service_data["hs_color"] = [
+                max(0.0, min(360.0, hue)),
+                max(0.0, min(100.0, saturation)),
+            ]
+
         if domain == "media_player":
             if service == "volume_mute":
                 service_data["is_volume_muted"] = bool(
@@ -280,6 +336,37 @@ async def call_service(request):
                     0.0,
                     min(1.0, volume_level)
                 )
+
+            if service == "select_source":
+                source = data.get("source")
+
+                if not isinstance(source, str) or not source:
+                    return web.json_response(
+                        {"error": "Invalid source"},
+                        status=400,
+                    )
+
+                service_data["source"] = source[:120]
+
+            if service == "shuffle_set":
+                service_data["shuffle"] = bool(
+                    data.get("shuffle")
+                )
+
+            if service == "repeat_set":
+                repeat = data.get("repeat")
+
+                if repeat not in {
+                    "off",
+                    "all",
+                    "one",
+                }:
+                    return web.json_response(
+                        {"error": "Invalid repeat mode"},
+                        status=400,
+                    )
+
+                service_data["repeat"] = repeat
 
         async with ClientSession(
             timeout=ClientTimeout(total=15)
@@ -373,6 +460,79 @@ async def camera_image(request):
             {
                 "error": type(error).__name__,
                 "message": str(error).split(" headers=")[0],
+            },
+            status=502,
+        )
+
+
+
+async def media_artwork(request):
+    entity_id = request.match_info.get("entity_id", "")
+
+    if not entity_id.startswith("media_player."):
+        return web.json_response(
+            {"error": "Invalid media player entity"},
+            status=400,
+        )
+
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=20)
+        ) as session:
+            state = await rest_get(
+                session,
+                f"/states/{entity_id}",
+            )
+
+            picture = (
+                state.get("attributes", {})
+                .get("entity_picture")
+            )
+
+            if not (
+                isinstance(picture, str)
+                and picture.startswith("/api/")
+            ):
+                return web.json_response(
+                    {"error": "No proxied artwork"},
+                    status=404,
+                )
+
+            async with session.get(
+                CORE + picture,
+                headers={
+                    "Authorization": f"Bearer {TOKEN}",
+                },
+            ) as response:
+                response.raise_for_status()
+
+                body = await response.read()
+
+                content_type = response.headers.get(
+                    "Content-Type",
+                    "image/jpeg"
+                )
+
+        return web.Response(
+            body=body,
+            content_type=content_type.split(";")[0],
+            headers={
+                "Cache-Control": "no-store"
+            },
+        )
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: MEDIA ARTWORK ERROR:",
+            entity_id,
+            type(error).__name__,
+            flush=True,
+        )
+
+        return web.json_response(
+            {
+                "error": type(error).__name__,
+                "message": "Media artwork unavailable",
             },
             status=502,
         )
@@ -547,6 +707,174 @@ async def camera_signals(request):
             {
                 "error": type(error).__name__,
                 "message": str(error).split(" headers=")[0],
+            },
+            status=502,
+        )
+
+
+
+async def network_signals(request):
+    try:
+        async with ClientSession(
+            timeout=ClientTimeout(total=25)
+        ) as session:
+            states = await rest_get(
+                session,
+                "/states"
+            )
+
+            registries = await get_registries(
+                session
+            )
+
+        entities = registries["entities"]
+        entity_registry = {
+            item.get("entity_id"): item
+            for item in entities
+        }
+
+        categories = {
+            "wan": [],
+            "wifi": [],
+            "clients": [],
+            "other": [],
+        }
+
+        network_terms = (
+            "unifi",
+            "ucg",
+            "wan",
+            "internet",
+            "wifi",
+            "wi-fi",
+            "access point",
+            "ap ",
+            "rssi",
+            "snr",
+            "retry",
+            "interference",
+            "latency",
+            "packet loss",
+        )
+
+        wan_terms = (
+            "wan",
+            "internet",
+            "isp",
+            "packet loss",
+            "latency",
+        )
+
+        wifi_terms = (
+            "wifi",
+            "wi-fi",
+            "access point",
+            "ap ",
+            "channel",
+            "radio",
+            "utilization",
+            "interference",
+            "retry",
+        )
+
+        client_terms = (
+            "client",
+            "rssi",
+            "snr",
+            "signal",
+            "roam",
+            "tx rate",
+            "rx rate",
+        )
+
+        for state in states:
+            entity_id = state.get("entity_id", "")
+            attrs = state.get("attributes", {})
+            friendly_name = str(
+                attrs.get("friendly_name", "")
+            )
+
+            registry = entity_registry.get(
+                entity_id,
+                {}
+            )
+
+            platform = registry.get("platform")
+
+            text = (
+                entity_id + " " +
+                friendly_name + " " +
+                str(platform or "")
+            ).lower()
+
+            if not (
+                platform == "unifi"
+                or any(
+                    term in text
+                    for term in network_terms
+                )
+            ):
+                continue
+
+            useful_attributes = {}
+
+            for key in (
+                "device_class",
+                "unit_of_measurement",
+                "state_class",
+                "friendly_name",
+            ):
+                if key in attrs:
+                    useful_attributes[key] = attrs[key]
+
+            item = {
+                "entity_id": entity_id,
+                "name": friendly_name or entity_id,
+                "platform": platform,
+                "state": state.get("state"),
+                "last_updated": state.get("last_updated"),
+                "attributes": useful_attributes,
+            }
+
+            if any(term in text for term in wan_terms):
+                categories["wan"].append(item)
+            elif any(term in text for term in client_terms):
+                categories["clients"].append(item)
+            elif any(term in text for term in wifi_terms):
+                categories["wifi"].append(item)
+            else:
+                categories["other"].append(item)
+
+        for items in categories.values():
+            items.sort(
+                key=lambda item: (
+                    item.get("name") or "",
+                    item.get("entity_id") or "",
+                )
+            )
+
+        return web.json_response({
+            "wan": categories["wan"],
+            "wifi": categories["wifi"],
+            "clients": categories["clients"],
+            "other": categories["other"],
+            "count": sum(
+                len(items)
+                for items in categories.values()
+            ),
+        })
+
+    except Exception as error:
+        print(
+            "HOME CONTROL: NETWORK SIGNAL ERROR:",
+            repr(error),
+            flush=True,
+        )
+
+        return web.json_response(
+            {
+                "error": type(error).__name__,
+                "message": "Network signal request failed",
             },
             status=502,
         )
@@ -740,7 +1068,9 @@ app.router.add_get("/api/health", health)
 app.router.add_get("/api/ring-mqtt-diagnostics", ring_mqtt_diagnostics)
 app.router.add_get("/api/entity/{entity_id}", raw_entity_state)
 app.router.add_get("/api/camera-signals", camera_signals)
+app.router.add_get("/api/network-signals", network_signals)
 app.router.add_get("/api/camera/{entity_id}", camera_image)
+app.router.add_get("/api/media-artwork/{entity_id}", media_artwork)
 app.router.add_post("/api/service", call_service)
 
 web.run_app(
